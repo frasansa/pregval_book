@@ -20,19 +20,11 @@ source(file.path("..", "scripts", "Funciones.R"))
 ## Input
 
 ```{r}
-# read empadronados
-sips_empadronados <- readRDS(file.path("..", "PREGVAL", "Results", "sips", 
-                           "sips_empadronados.RDS"))
-
-```
-
-
-```{r}
 # select the input-----------------------------------------------------------
 table_name <- "sip.csv"
-sip <- fread2(file.path("..", "QC_project", "datos", "Pregval", 
-                        table_name)) |> 
-  filter(sip %in% sips_empadronados)
+# sip <- fread2(file.path("..", "QC_project", "datos", "Pregval", 
+#                         table_name)) |> 
+#   filter(sip %in% sips_empadronados)
 
 ```
 
