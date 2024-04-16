@@ -17,7 +17,7 @@ source(file.path("..", "scripts", "Funciones.R"))
 
 ```
 
-This website is about the PREGVAL project, a population-based cohort of pregnancies in the Region of Valencia, a region in south-eastern Spain with a population of 5 million.
+PREGVAL is a population-based cohort of pregnancies in the Region of Valencia, a region in south-eastern Spain with a population of 5 million.
 
 
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

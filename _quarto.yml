@@ -7,6 +7,7 @@ book:
   date: "last-modified"
   chapters:
     - index.qmd
+    - "00_Introduction.qmd"
     - "01_SIP_QC.qmd"
     - "02_PCV_2009_2012_QC.qmd"
     - "02_PCV_2013_2017_QC.qmd"
