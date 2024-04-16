@@ -1,0 +1,1231 @@
+---
+title: "Quality Check: Processing SIP. Empadronados"
+---
+
+```{r}
+#| echo: false
+source("_common.R")
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+```{r }
+#| include: false
+# load libraries and functions-----------------------------------------------
+source(file.path("..", "scripts", "Librerias.R"))
+source(file.path("..", "scripts", "Funciones.R"))
+
+```
+
+## Input
+
+```{r}
+# read empadronados
+sips_empadronados <- readRDS(file.path("..", "PREGVAL", "Results", "sips", 
+                           "sips_empadronados.RDS"))
+
+```
+
+
+```{r}
+# select the input-----------------------------------------------------------
+table_name <- "sip.csv"
+sip <- fread2(file.path("..", "QC_project", "datos", "Pregval", 
+                        table_name)) |> 
+  filter(sip %in% sips_empadronados)
+
+```
+
+The table to be analysed is **`r table_name`**.
+
+```{r}
+# set the study variables----------------------------------------------------
+start_of_study_period <- ymd("2009-01-01")
+end_of_study_period   <- ymd("2021-12-31")
+
+if (str_detect(table_name, "2009_2012") == TRUE){
+# PREGVAL 2009-2012----------------------------------------------------------
+  start_of_study_period <- ymd("2009-01-01")
+  end_of_study_period <- ymd("2012-12-31")
+}
+
+if (str_detect(table_name, "2013_2017") == TRUE){
+# PREGVAL 2013-2017----------------------------------------------------------
+  start_of_study_period <- ymd("2013-01-01")
+  end_of_study_period <- ymd("2017-12-31")
+}
+
+if (str_detect(table_name, "2018_2021") == TRUE){
+# PREGVAL 2018-2021----------------------------------------------------------
+  start_of_study_period <- ymd("2018-01-01")
+  end_of_study_period <- ymd("2021-12-31")
+}
+
+```
+
+```{r}
+# load names-----------------------------------------------------------------
+vid_names <- readRDS(file.path("..", "EHDEN", "Results", "vid_catalogue",
+                               "vid_names.RDS"))
+
+```
+
+```{r}
+# load population------------------------------------------------------------
+# sips_clean <- readRDS(file.path("..", "PREGVAL", "Results", 
+#                                 "sips", "sips_clean.RDS"))
+# sips_total <- sips_clean
+
+sips_total <- sips_empadronados
+
+
+```
+
+## Check variables
+
+```{r}
+# capture the names of the instance table------------------------------------
+instance_names <- sip |> 
+  names() 
+
+```
+
+The variables extracted from SIP are: `r colorize(knitr::combine_words(instance_names), "blue")`.
+
+```{r}
+# check mandatory variables--------------------------------------------------
+missing_mandatory_vars <- vid_names$sip_mandatory_names |> 
+  keep(~. %nin% instance_names)
+
+missing_mandatory_print <- "All mandatory vars are present"  
+
+if (missing_mandatory_vars |> length() > 0) missing_mandatory_print <-
+  glue("{knitr::combine_words(missing_mandatory_vars)} are missing")
+      
+color_mandatory_check <- if_else(missing_mandatory_vars |> length() > 0,
+                                 "red", "green")
+
+```
+
+### Check mandatory vars 
+
+`r colorize(missing_mandatory_print, color_mandatory_check)`.
+
+```{r}
+# check variables in full names----------------------------------------------
+missing_full_vars <- vid_names$sip_all_names |> 
+  keep(~. %nin% instance_names)
+
+if(missing_full_vars |> length() > 0){
+missing_full_print <- glue("{knitr::combine_words(missing_full_vars)} were not extracted")
+}else{
+missing_full_print <- "All possible vars are present"
+}
+
+color_full_check <- if_else(missing_full_vars |> length() > 0,
+                                 "red", "green")
+
+```
+
+### Check all vars 
+
+`r colorize(missing_full_print, color_full_check)`.
+
+### Completeness
+
+In @fig-sipcompleteness is shown the percentage of non-missing values for each variable. Non-mandatory variables are shown at the bottom of the graph.
+
+```{r}
+#| warning: false
+# fix missing values---------------------------------------------------------
+# manipulate unknown values to NA (0_00, -1, -2, etc.)
+vector_of_nas <- c("", "0:00", "****", "0:DESCONOCIDA", "-1", "-2")
+
+# This transformation could (and should) be done in steps 1_**
+sip <- sip |> 
+  # fix unknown as NAs
+  mutate(across(c(sit_empadronamiento, derecho_farmacia, 
+                  dpto_salud, zona_salud, apsig, 
+                  causa_baja, raf_ipago), 
+                ~if_else(.x %in% vector_of_nas, NA_character_, .x))) |> 
+  # fix wrong causa_baja (recorded as fecha_baja)
+  mutate(fecha_baja = if_else(str_detect(causa_baja, "\\d\\d/"),
+                                          dmy(causa_baja), fecha_baja),
+         causa_baja = if_else(str_detect(causa_baja, "\\d\\d/"),
+                                          NA_character_, causa_baja)) 
+  
+```
+
+
+```{r}
+# function to check completeness---------------------------------------------
+check_completeness <- function(table, var){
+if (as_string(ensym(var)) %nin% names(sip)) {
+  return(lst(missing_obs = nrow(sip),
+           complete_pct = 0,
+           print_missing = "0%",
+           color_missing = "red"
+  ))
+  }
+total_obs <- table |> nrow() 
+missing_obs <-  table |> filter(is.na({{var}})) |> nrow()
+complete_pct <- 100 * ((total_obs - missing_obs)/total_obs) |> 
+  round(3)
+  
+print_missing <- glue("{complete_pct}%")
+color_missing <- if_else(missing_obs == 0, "green", "orange")
+return(lst(missing_obs,
+           complete_pct,
+           print_missing,
+           color_missing
+            ))
+}
+
+```
+
+
+```{r}
+# apply the function to each var---------------------------------------------
+miss_fecha_calculo       <- check_completeness(sip, fecha_calculo)
+miss_fecha_nacimiento    <- check_completeness(sip, fecha_nacimiento)
+miss_sexo                <- check_completeness(sip, sexo)
+miss_pais_nacimiento     <- check_completeness(sip, pais_nacimiento)
+miss_sit_empadronamiento <- check_completeness(sip, sit_empadronamiento)
+miss_derecho_farmacia    <- check_completeness(sip, derecho_farmacia)
+miss_dpto_salud          <- check_completeness(sip, dpto_salud)
+miss_zona_salud          <- check_completeness(sip, zona_salud)
+miss_fecha_alta          <- check_completeness(sip, fecha_alta)
+miss_fecha_baja          <- check_completeness(sip, fecha_baja)
+miss_causa_baja          <- check_completeness(sip, causa_baja)
+miss_fecha_defuncion     <- check_completeness(sip, fecha_defuncion)
+miss_raf_ilimi           <- check_completeness(sip, raf_ilimi)
+miss_raf_ipago           <- check_completeness(sip, raf_ipago)
+miss_apsig               <- check_completeness(sip, apsig)
+
+```
+
+```{r}
+# ensamble the missings------------------------------------------------------
+tibble_missings <- data.frame(var = vid_names$sip_all_names,
+                pct = map_dbl(vid_names$sip_all_names, 
+                ~check_completeness(sip, var = !!sym(.x))$complete_pct),
+                complete = map_chr(vid_names$sip_all_names, 
+                ~check_completeness(sip, var = !!sym(.x))$print_missing)) |> 
+  as_tibble() |> 
+  mutate(var = fct_rev(fct_inorder(var))) |> 
+  mutate(type = if_else(var %in% vid_names$sip_mandatory_names, 
+                        "#9473d8", "#f2cce4"))
+
+```
+
+<br>
+
+```{r}
+#| label: fig-sipcompleteness
+#| fig-cap: "Variables completeness"
+# plot the missings----------------------------------------------------------
+
+ggplot(tibble_missings, aes(y = var, x = pct)) +
+  geom_col(aes(fill = type)) + 
+  geom_text(aes(label = complete),
+            colour = "black",
+            position = position_nudge(7),
+            size = 7,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Variable") +
+  scale_x_continuous(name = "Completeness", 
+                     breaks = c(0, 25, 50, 75, 100),
+                     labels = scales::comma) 
+  
+```
+
+<br>
+
+## Check content
+
+```{r}
+# total number of rows-------------------------------------------------------
+total_sip_observations <- sip |> nrow()
+  
+```
+
+The **SIP** table has a total of **n = `r total_sip_observations |> pretty2()` observations**.
+
+### Population
+
+```{r}
+# total individuals----------------------------------------------------------
+distinct_sips <- sip |> distinct(sip) |> nrow() |> pretty2()
+total_sips <- sips_total |> length() |> pretty2()
+percent_sips <- (sip |> distinct(sip) |> nrow() /  sips_total |> 
+                   length()) * 100
+print_percent_sips <- glue("{percent_sips |> round(2)}%")
+
+```
+
+- In **SIP** table there are `r colorize(distinct_sips, "blue")` distinct individuals out of the `r colorize(total_sips, "purple")` individuals in the target population. These represents `r colorize(print_percent_sips, "blue")` of the total.
+
+```{r}
+# individuals in population--------------------------------------------------
+sips_in_pop <- sip |> 
+  distinct(sip) |> 
+  filter(sip %in% sips_total) |> 
+  nrow() |> pretty2()
+
+color_in_pop <- if_else(sips_in_pop < distinct_sips, "red", "green")
+
+```
+
+- There are `r colorize(sips_in_pop, color_in_pop)` individuals included in the target population.
+
+### Year of calculation
+
+The variable *fecha_calculo* is missing in **`r miss_fecha_calculo$missing_obs` observations**, so it is `r colorize(miss_fecha_calculo$print_missing, miss_fecha_calculo$color_missing)` complete. @tbl-fechacalc shows the number of individuals per year of calculation.
+
+<br>
+
+```{r}
+#| label: tbl-fechacalc
+#| tbl-cap-location: top
+#| tbl-cap: "Number of individuals per year of calculation"
+# create table of number of individuals per year-----------------------------
+sip |> 
+  count(fecha_calculo) |> 
+  gt(id = "fechacalc") |>  # need to name the table to apply CSS
+  cols_label(fecha_calculo = "Year of calculation",
+             n = "Count") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #fechacalc tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+color_fecha_calculo <- if_else(sip |> 
+  count(fecha_calculo) |> distinct(n) |> nrow() == 1, "green", "red")
+
+print_fecha_calculo <- if_else(color_fecha_calculo == "green",
+                               "The SIP population is the same each year",
+                               glue("The SIP population changes {emoji(aliases = 'angry')}"))
+
+```
+
+<br>
+
+`r colorize(print_fecha_calculo, color_fecha_calculo)`.
+
+### Birthdate
+
+The variable *fecha_nacimiento* is missing in **`r miss_fecha_nacimiento$missing_obs` observations**, so it is `r colorize(miss_fecha_nacimiento$print_missing, miss_fecha_calculo$color_missing)` complete.
+
+
+```{r}
+# check month and year of fecha_nacimiento-----------------------------------
+sip_month_year_birthdate <- sip |> 
+  count(month = month(fecha_nacimiento, 
+                      label = TRUE,
+                      abbr = FALSE,
+                      locale = "EN"), 
+        year = year(fecha_nacimiento),
+        name = "n_month_year") |> 
+  arrange(year, month)
+
+sip_month_year_birthdate_min <- sip_month_year_birthdate |> 
+  filter(n_month_year == min(n_month_year))
+sip_month_year_birthdate_max <- sip_month_year_birthdate |> 
+  filter(n_month_year == max(n_month_year))
+
+print_month_year_birthdate_min <- glue(
+  "{sip_month_year_birthdate_min |> pull(month)} {sip_month_year_birthdate_min |> pull(year)} with n = {sip_month_year_birthdate_min |> pull(n_month_year)}" )
+
+print_month_year_birthdate_max <- glue(
+  "{sip_month_year_birthdate_max |> pull(month)} {sip_month_year_birthdate_max |> pull(year)} with n = {sip_month_year_birthdate_max |> pull(n_month_year)}" )
+
+```
+
+The month and year with less birthdates was `r colorize(print_month_year_birthdate_min, "blue")` and the month and year with more birthdates was `r colorize(print_month_year_birthdate_max, "purple")`.
+
+In @fig-sipbdyear, @fig-sipbdmonth, and @fig-sipbdday are presented the frequencies of years, months, and days of the birthdates respectively.
+
+<br>
+
+```{r}
+#| label: fig-sipbdyear
+#| fig-cap: "Birthdate year"
+# plot birthdate year--------------------------------------------------------
+sip_year_birthdate <- sip |> 
+  count(year_birthdate = year(fecha_nacimiento), name = "n_year")
+
+ggplot(sip_year_birthdate) +
+  geom_col(aes(x = year_birthdate, y = n_year), fill = "#9473d8") +
+  xlab("Birthdate year") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-sipbdmonth
+#| fig-cap: "Birthdate month"
+# plot birthdate month-------------------------------------------------------
+sip_month_birthdate <- sip |> 
+  count(month_birthdate = month(fecha_nacimiento, label = TRUE,
+                                locale = "EN"), name = "n_month")
+
+ggplot(sip_month_birthdate) +
+  geom_col(aes(x = month_birthdate, y = n_month), fill = "#9473d8") +
+  xlab("Birthdate month") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-sipbdday
+#| fig-cap: "Birthdate day"
+# plot birthdate day---------------------------------------------------------
+sip_day_birthdate <- sip |> 
+  count(day_birthdate = day(fecha_nacimiento), name = "n_day")
+
+ggplot(sip_day_birthdate) +
+  geom_col(aes(x = day_birthdate, y = n_day), fill = "#9473d8") +
+  scale_x_continuous(name = "Birthdate day", 
+                   breaks = 1:31, labels = 1:31) +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+### Sex
+
+The variable *sexo* is missing in **`r miss_sexo$missing_obs` observations**, so it is `r colorize(miss_sexo$print_missing, miss_sexo$color_missing)` complete.
+
+In @tbl-sex is shown the sex categories.
+
+<br>
+
+```{r}
+#| label: tbl-sex
+#| tbl-cap-location: top
+#| tbl-cap: "Sex categories"
+# create table of sexo-------------------------------------------------------
+sip |> 
+  tabyl(sexo) |>
+  adorn_pct_formatting() |>
+  gt(id = "sex") |>  # need to name the table to apply CSS
+  cols_label(sexo = "Sex",
+             n = "Count",
+             percent = "Percentage") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #sex tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+### Origin country
+
+The variable *pais_nacimiento* is missing in **`r miss_pais_nacimiento$missing_obs` observations**, so it is `r colorize(miss_pais_nacimiento$print_missing, miss_pais_nacimiento$color_missing)` complete.
+
+In @tbl-pais the frequencies of origin countries are presented.
+
+<br>
+
+```{r}
+#| label: tbl-pais
+#| tbl-cap-location: top
+#| tbl-cap: "Origin country categories"
+# create table of pais_nacimiento--------------------------------------------
+sip |> 
+  tabyl(pais_nacimiento) |>
+  adorn_pct_formatting() |> 
+  gt(id = "pais") |>  # need to name the table to apply CSS
+  cols_label(pais_nacimiento = "Origin country",
+             n = "Count",
+             percent = "Percentage") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |>
+  tab_options(
+    container.height = "400px"
+  ) |> 
+  opt_css(
+    css = "
+    #pais tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+### Census situation
+
+The variable *sit_empadronamiento* is missing in **`r miss_sit_empadronamiento$missing_obs` observations**, so it is `r colorize(miss_sit_empadronamiento$print_missing, miss_sit_empadronamiento$color_missing)` complete.
+
+In @tbl-sit and @fig-sipsit are presented the census situation categories counts. Finally, @fig-sipsityear shows the count of census situations per year.
+
+<br>
+
+```{r}
+#| label: tbl-sit
+#| tbl-cap-location: top
+#| tbl-cap: "Census situation categories"
+# create table of sit_empadronamiento----------------------------------------
+
+sip |> 
+  tabyl(sit_empadronamiento) |>
+  adorn_pct_formatting() |> 
+  gt(id = "sit") |>  # need to name the table to apply CSS
+  cols_label(sit_empadronamiento = "Census situation",
+             n = "Count",
+             percent = "Percentage") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #sit tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+```{r}
+#| label: fig-sipsit
+#| fig-cap: "Census situation categories"
+# plot sit_empadronamiento-----------------------------------------------------------
+x_pos <- nrow(sip) / 10
+
+sip |>
+  mutate(sit_empadronamiento = fct_lump_n(fct_infreq(sit_empadronamiento), n = 10, 
+                                   other_level = "OTROS") |> fct_rev()) |> 
+  count(sit_empadronamiento) |>
+  mutate(n_all = sum(n)) |> 
+  mutate(percent = glue("{round(100 * n / n_all, 1)}%")) |> 
+  # make colour for na
+  mutate(fill_color = if_else(is.na(sit_empadronamiento),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = sit_empadronamiento, x = n)) +
+  geom_col(aes(fill = fill_color)) + 
+  geom_text(aes(label = percent),
+            colour = "black",
+            size = 7,
+            fontface = "bold",
+            x = x_pos
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Census situation") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(axis.text = element_text(size = 20))
+
+```
+
+<br>
+
+```{r}
+#| label: fig-sipsityear
+#| fig-cap: "Census situation categories per year"
+# plot sit_empadronamiento per year--------------------------------------------------
+
+xpos2 <- x_pos/(sip |> distinct(year(fecha_calculo)) |> nrow())
+
+sip |>
+  mutate(sit_empadronamiento = fct_lump_n(fct_infreq(sit_empadronamiento), n = 10, 
+                                   other_level = "OTROS") |> fct_rev()) |>
+  mutate(year = year(fecha_calculo)) |>
+  count(year, sit_empadronamiento) |>
+  group_by(year) |> 
+  mutate(n_year = sum(n)) |> 
+  ungroup() |>
+  mutate(percent = glue("{round(100 * n / n_year, 1)}%")) |> 
+# make colour for na
+  mutate(fill_color = if_else(is.na(sit_empadronamiento),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = sit_empadronamiento, x = n)) +
+  geom_col(aes(fill = fill_color)) +
+  facet_wrap(~year, ncol = 4) +
+  geom_text(aes(label = percent),
+            colour = "black",
+            size = 7,
+            fontface = "bold",
+            x = xpos2
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Census situation") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(
+    axis.text.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20, angle = 90))
+
+```
+
+<br>
+
+### Pharmacy rights
+
+The variable *derecho_farmacia* is missing in **`r miss_derecho_farmacia$missing_obs` observations**, so it is `r colorize(miss_derecho_farmacia$print_missing, miss_derecho_farmacia$color_missing)` complete.
+
+In @tbl-rights is shown the pharmacy rights counts.
+
+<br>
+
+```{r}
+#| label: tbl-rights
+#| tbl-cap-location: top
+#| tbl-cap: "Pharmacy rights count"
+# create table of derecho_farmacia-------------------------------------------
+
+sip |> 
+  tabyl(derecho_farmacia) |>
+  adorn_pct_formatting() |> 
+  gt(id = "rights") |>  # need to name the table to apply CSS
+  cols_label(derecho_farmacia = "Pharmacy Rights",
+             n = "Count",
+             percent = "Percentage") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #rights tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+### Health department
+
+The variable *dpto_salud* is missing in **`r miss_dpto_salud$missing_obs` observations**, so it is `r colorize(miss_dpto_salud$print_missing, miss_dpto_salud$color_missing)` complete.
+
+@fig-sipdpto shows the count of people who pertain at the distinct  health departments.
+
+<br>
+
+```{r}
+#| label: fig-sipdpto
+#| fig-cap: "Health departments counts"
+# plot dpto_salud------------------------------------------------------------
+
+sip |>
+  tabyl(dpto_salud) |>
+  adorn_pct_formatting() |> 
+  mutate(dpto_salud = fct_reorder(dpto_salud, n)) |> 
+  # make colour for na
+  mutate(fill_color = if_else(is.na(dpto_salud),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = dpto_salud, x = n)) +
+  geom_col(aes(fill = fill_color)) + 
+  geom_text(aes(label = percent),
+            colour = "black",
+            position = position_nudge(7),
+            size = 7,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Health department") +
+  scale_x_continuous(name = "Count", labels = scales::comma)
+
+```
+
+<br>
+
+In @tbl-dptoyear is shown the number of distinct health departments by year.
+
+<br>
+
+```{r}
+#| label: tbl-dptoyear
+#| tbl-cap-location: top
+#| tbl-cap: "Number of health departments by year"
+# create table of dpto_salud-------------------------------------------------
+
+sip |> 
+  filter(!is.na(dpto_salud)) |> 
+  distinct(fecha_calculo, dpto_salud) |> 
+  count(fecha_calculo) |> 
+  gt(id = "dptoyear") |>  # need to name the table to apply CSS
+  cols_label(fecha_calculo = "Year of calculation",
+             n = "Number of health departments") |> 
+  cols_align(
+  align = c("center"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "center", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |>
+  tab_style(
+    style = list(
+      cell_text(color = "red")
+      ),
+    locations = cells_body(
+      columns = n,
+      rows = n < 24
+    )) |> 
+  opt_css(
+    css = "
+    #dptoyear tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+  
+```
+
+<br>
+
+### Health basic area
+
+The variable *zona_salud* is missing in **`r miss_zona_salud$missing_obs` observations**, so it is `r colorize(miss_zona_salud$print_missing, miss_zona_salud$color_missing)` complete.
+
+In @tbl-zonayear is shown the number of distinct health basic areas by year.
+
+<br>
+
+```{r}
+#| label: tbl-zonayear
+#| tbl-cap-location: top
+#| tbl-cap: "Number of health basic areas by year"
+# create table of zona_salud-------------------------------------------------
+sip |> 
+  filter(!is.na(zona_salud)) |> 
+  distinct(fecha_calculo, zona_salud) |> 
+  count(fecha_calculo) |> 
+  gt(id = "zonayear") |>  # need to name the table to apply CSS
+  cols_label(fecha_calculo = "Year of calculation",
+             n = "Number of health departments") |> 
+  cols_align(
+  align = c("center"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "center", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |>
+  tab_style(
+    style = list(
+      cell_text(color = "red")
+      ),
+    locations = cells_body(
+      columns = n,
+      rows = n < 241
+    )) |> 
+  opt_css(
+    css = "
+    #zonayear tr:hover {
+    background-color: #f2cce4;
+    }
+    ") 
+ 
+```
+
+<br>
+
+### Registration date
+
+The variable *fecha_alta* is missing in **`r miss_fecha_alta$missing_obs` observations**, so it is `r colorize(miss_fecha_alta$print_missing, miss_fecha_alta$color_missing)` complete.
+
+```{r}
+# check month and year of fecha_alta-----------------------------------------
+sip_month_year_registration <- sip |> 
+  count(month = month(fecha_alta, 
+                      label = TRUE,
+                      abbr = FALSE,
+                      locale = "EN"), 
+        year = year(fecha_alta),
+        name = "n_month_year") |> 
+  arrange(year, month)
+
+sip_month_year_registration_min <- sip_month_year_registration |> 
+  filter(n_month_year == min(n_month_year))
+sip_month_year_registration_max <- sip_month_year_registration |> 
+  filter(n_month_year == max(n_month_year))
+
+print_month_year_registration_min <- glue(
+  "{sip_month_year_registration_min |> pull(month)} {sip_month_year_registration_min |> pull(year)} with n = {sip_month_year_registration_min |> pull(n_month_year)}" )
+
+print_month_year_registration_max <- glue(
+  "{sip_month_year_registration_max |> pull(month)} {sip_month_year_registration_max |> pull(year)} with n = {sip_month_year_registration_max |> pull(n_month_year)}" )
+
+```
+
+The month and year with less registrations was `r colorize(print_month_year_registration_min, "blue")` and the month and year with more registrations was `r colorize(print_month_year_registration_max, "purple")`.
+
+In @fig-sipregyear, @fig-sipregmonth, and @fig-sipregday are presented the counts of registrations by years, months, and days respectively.
+
+<br>
+
+```{r}
+#| label: fig-sipregyear
+#| fig-cap: "Number of registrations by year"
+# plot year of fecha_alta----------------------------------------------------
+
+sip_year_registration <- sip |> 
+  count(year_registration = year(fecha_alta), name = "n_year")
+
+ggplot(sip_year_registration) +
+  geom_col(aes(x = year_registration, y = n_year), fill = "#9473d8") +
+  xlab("Registration year") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-sipregmonth
+#| fig-cap: "Number of registrations by month"
+# plot month of fecha_alta---------------------------------------------------
+
+sip_month_registration <- sip |> 
+  count(month_registration = month(fecha_alta, label = TRUE,
+                                locale = "EN"), name = "n_month")
+
+ggplot(sip_month_registration) +
+  geom_col(aes(x = month_registration, y = n_month), fill = "#9473d8") +
+  xlab("Registration month") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-sipregday
+#| fig-cap: "Number of registrations by day"
+# plot day of fecha_alta-----------------------------------------------------
+
+sip_day_registration <- sip |> 
+  count(day_registration = day(fecha_alta), name = "n_day")
+
+ggplot(sip_day_registration) +
+  geom_col(aes(x = day_registration, y = n_day), fill = "#9473d8") +
+  scale_x_continuous(name = "Registration day", 
+                   breaks = 1:31, labels = 1:31) +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+### Deregistration date
+
+The variable *fecha_baja* is missing in **`r miss_fecha_baja$missing_obs` observations**, so it is `r colorize(miss_fecha_baja$print_missing, miss_fecha_baja$color_missing)` complete.
+
+```{r}
+# check month and year of fecha_baja-----------------------------------------
+sip_month_year_deregistration <- sip |>
+  filter(!is.na(fecha_baja)) |> 
+  count(month = month(fecha_baja, 
+                      label = TRUE,
+                      abbr = FALSE,
+                      locale = "EN"), 
+        year = year(fecha_baja),
+        name = "n_month_year") |> 
+  arrange(year, month)
+
+sip_month_year_deregistration_min <- sip_month_year_deregistration |> 
+  filter(n_month_year == min(n_month_year))
+sip_month_year_deregistration_max <- sip_month_year_deregistration |> 
+  filter(n_month_year == max(n_month_year))
+
+print_month_year_deregistration_min <- glue(
+  "{sip_month_year_deregistration_min |> pull(month)} {sip_month_year_deregistration_min |> pull(year)} with n = {sip_month_year_deregistration_min |> pull(n_month_year)}" )
+
+print_month_year_deregistration_max <- glue(
+  "{sip_month_year_deregistration_max |> pull(month)} {sip_month_year_deregistration_max |> pull(year)} with n = {sip_month_year_deregistration_max |> pull(n_month_year)}" )
+
+```
+
+The month and year with less deregistrations was `r colorize(print_month_year_deregistration_min, "blue")` and the month and year with more deregistrations was `r colorize(print_month_year_deregistration_max, "purple")`.
+
+In @fig-sipderegyear, @fig-sipderegmonth, and @fig-sipderegday are presented the counts of deregistrations by years, months, and days respectively.
+
+<br>
+
+```{r}
+#| label: fig-sipderegyear
+#| fig-cap: "Number of deregistrations by year"
+# plot year of fecha_baja----------------------------------------------------
+
+sip_year_deregistration <- sip |> 
+  filter(!is.na(fecha_baja)) |> 
+  count(year_deregistration = year(fecha_baja), name = "n_year")
+
+ggplot(sip_year_deregistration) +
+  geom_col(aes(x = year_deregistration, y = n_year), fill = "#9473d8") +
+  xlab("Deregistration year") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-sipderegmonth
+#| fig-cap: "Number of deregistrations by month"
+# plot month of fecha_baja---------------------------------------------------
+
+sip_month_deregistration <- sip |>
+  filter(!is.na(fecha_baja)) |> 
+  count(month_deregistration = month(fecha_baja, label = TRUE,
+                                locale = "EN"), name = "n_month")
+
+ggplot(sip_month_deregistration) +
+  geom_col(aes(x = month_deregistration, y = n_month), fill = "#9473d8") +
+  xlab("Deregistration month") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-sipderegday
+#| fig-cap: "Number of deregistrations by day"
+# plot day of fecha_baja-----------------------------------------------------
+
+sip_day_deregistration <- sip |>
+  filter(!is.na(fecha_baja)) |> 
+  count(day_deregistration = day(fecha_baja), name = "n_day")
+
+ggplot(sip_day_deregistration) +
+  geom_col(aes(x = day_deregistration, y = n_day), fill = "#9473d8") +
+  scale_x_continuous(name = "Deregistration day", 
+                   breaks = 1:31, labels = 1:31) +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+### Deregistration cause
+
+The variable *causa_baja* is missing in **`r miss_causa_baja$missing_obs` observations**, so it is `r colorize(miss_causa_baja$print_missing, miss_causa_baja$color_missing)` complete.
+
+In @tbl-dptoyear is shown the frequencies of the distinct deregistration causes.
+
+<br>
+
+```{r}
+#| label: tbl-dereg
+#| tbl-cap-location: top
+#| tbl-cap: "Deregistration cause"
+# create table of causa_naja-------------------------------------------------
+
+sip |> 
+  tabyl(causa_baja) |>
+  adorn_pct_formatting() |> 
+  gt(id = "dereg") |>  # need to name the table to apply CSS
+  cols_label(causa_baja = "Deregistration cause",
+             n = "Count",
+             percent = "Percentage") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #dereg tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+### Death date
+
+The variable *fecha_defuncion* is missing in **`r miss_fecha_defuncion$missing_obs` observations**, so it is `r colorize(miss_fecha_defuncion$print_missing, miss_fecha_defuncion$color_missing)` complete.
+
+```{r}
+# check month and year of fecha_defuncion------------------------------------
+sip_month_year_death <- sip |>
+  filter(!is.na(fecha_defuncion)) |> 
+  count(month = month(fecha_defuncion, 
+                      label = TRUE,
+                      abbr = FALSE,
+                      locale = "EN"), 
+        year = year(fecha_defuncion),
+        name = "n_month_year") |> 
+  arrange(year, month)
+
+sip_month_year_death_min <- sip_month_year_death |> 
+  filter(n_month_year == min(n_month_year))
+sip_month_year_death_max <- sip_month_year_death |> 
+  filter(n_month_year == max(n_month_year))
+
+print_month_year_death_min <- glue(
+  "{sip_month_year_death_min |> pull(month)} {sip_month_year_death_min |> pull(year)} with n = {sip_month_year_death_min |> pull(n_month_year)}" )
+
+print_month_year_death_max <- glue(
+  "{sip_month_year_death_max |> pull(month)} {sip_month_year_death_max |> pull(year)} with n = {sip_month_year_death_max |> pull(n_month_year)}" )
+
+```
+
+The month and year with less deaths was `r colorize(print_month_year_death_min, "blue")` and the month and year with more deaths was `r colorize(print_month_year_death_max, "purple")`.
+
+In @fig-sipdeathyear, @fig-sipdeathmonth, and @fig-sipdeathday are presented the counts of deaths by years, months, and days respectively.
+
+<br>
+
+```{r}
+#| label: fig-sipdeathyear
+#| fig-cap: "Number of deaths by year"
+# plot year of fecha_defuncion-----------------------------------------------
+
+sip_year_death <- sip |> 
+  filter(!is.na(fecha_defuncion)) |> 
+  count(year_death = year(fecha_defuncion), name = "n_year")
+
+ggplot(sip_year_death) +
+  geom_col(aes(x = year_death, y = n_year), fill = "#9473d8") +
+  xlab("Death year") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-sipdeathmonth
+#| fig-cap: "Number of deaths by month"
+# plot month of fecha_defuncion----------------------------------------------
+
+sip_month_death <- sip |>
+  filter(!is.na(fecha_defuncion)) |> 
+  count(month_death = month(fecha_defuncion, label = TRUE,
+                                locale = "EN"), name = "n_month")
+
+ggplot(sip_month_death) +
+  geom_col(aes(x = month_death, y = n_month), fill = "#9473d8") +
+  xlab("Death month") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-sipdeathday
+#| fig-cap: "Number of deaths by day"
+# plot day of fecha_defuncion------------------------------------------------
+
+sip_day_death <- sip |>
+  filter(!is.na(fecha_defuncion)) |> 
+  count(day_death = day(fecha_defuncion), name = "n_day")
+
+ggplot(sip_day_death) +
+  geom_col(aes(x = day_death, y = n_day), fill = "#9473d8") +
+  scale_x_continuous(name = "Death day", 
+                   breaks = 1:31, labels = 1:31) +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+### Copayment percentage
+
+The variable *raf_ipago* is missing in **`r miss_raf_ipago$missing_obs` observations**, so it is `r colorize(miss_raf_ipago$print_missing, miss_raf_ipago$color_missing)` complete.
+
+In @tbl-rafipago is shown the frequencies of the distinct copayment situation categories.
+
+<br>
+
+```{r}
+#| label: tbl-rafipago
+#| tbl-cap-location: top
+#| tbl-cap: "Copayment situation categories"
+# create table of rafipago---------------------------------------------------
+
+sip |> 
+  tabyl(raf_ipago) |>
+  adorn_pct_formatting() |> 
+  gt(id = "rafipago") |>  # need to name the table to apply CSS
+  cols_label(raf_ipago = "Copayment situation",
+             n = "Count",
+             percent = "Percentage") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #rafipago tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+### Copayment limit
+
+The variable *raf_ilimi* is missing in **`r miss_raf_ilimi$missing_obs` observations**, so it is `r colorize(miss_raf_ilimi$print_missing, miss_raf_ilimi$color_missing)` complete.
+
+In @tbl-rafilimi is shown the frequencies of the distinct copayment limits categories.
+
+<br>
+
+```{r}
+#| label: tbl-rafilimi
+#| tbl-cap-location: top
+#| tbl-cap: "Copayment limit categories"
+# create table of rafilimi---------------------------------------------------
+
+sip |> 
+  tabyl(raf_ilimi) |>
+  adorn_pct_formatting() |> 
+  gt(id = "rafilimi") |>  # need to name the table to apply CSS
+  cols_label(raf_ilimi = "Copayment limit",
+             n = "Count",
+             percent = "Percentage") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #rafilimi tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+### Integrated geographic segmentated code (apsig)
+
+The variable *apsig* is missing in **`r miss_apsig$missing_obs` observations**, so it is `r colorize(miss_apsig$print_missing, miss_apsig$color_missing)` complete. @fig-sipapsigyear shows the completeness of apsig per year
+
+```{r}
+#| label: fig-sipapsigyear
+#| fig-cap: "APSIG completeness per year"
+# plot sit_empadronamiento per year--------------------------------------------------
+
+xpos2 <- x_pos/(sip |> distinct(year(fecha_calculo)) |> nrow())
+
+sip |>
+  mutate(apsig_completeness = if_else(is.na(apsig), "missing", "non-missing")) |>
+  mutate(year = year(fecha_calculo)) |>
+  count(year, apsig_completeness) |>
+  group_by(year) |> 
+  mutate(n_year = sum(n)) |> 
+  ungroup() |>
+  mutate(percent = glue("{round(100 * n / n_year, 1)}%")) |> 
+# make colour for na
+  mutate(fill_color = if_else(is.na(apsig_completeness),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = apsig_completeness, x = n)) +
+  geom_col(aes(fill = fill_color)) +
+  facet_wrap(~year, ncol = 4) +
+  geom_text(aes(label = percent),
+            colour = "black",
+            size = 7,
+            fontface = "bold",
+            x = xpos2
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "APSIG") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(
+    axis.text.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20, angle = 90))
+
+```
+
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

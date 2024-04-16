@@ -1,0 +1,1094 @@
+---
+title: "Quality Check: Processing MBDS. Empadronados"
+author: "Francisco Sanchez-Saez"
+date: "last-modified" 
+editor: source
+format:
+  html:
+    toc: true
+    toc-location: left
+    theme: cerulean
+    css: style.css
+    embed-resources: true
+    number-sections: true
+    output-file: "PREGVAL_MBDS_empadronados.html" 
+---
+
+```{r}
+#| echo: false
+source("_common.R")
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+```{r }
+#| include: false
+# load libraries and functions-----------------------------------------------
+source(file.path("..", "scripts", "Librerias.R"))
+source(file.path("..", "scripts", "Funciones.R"))
+
+```
+
+```{css, echo = FALSE}
+.output {
+max-height: 500px;
+overflow-y: scroll;
+}
+
+```
+
+## Input
+
+```{r}
+# read empadronados
+sips_empadronados <- readRDS(file.path("..", "PREGVAL", "Results", "sips", 
+                           "sips_empadronados.RDS"))
+
+```
+
+```{r}
+# select the input-----------------------------------------------------------
+table_name <- "mbds.csv"
+
+mbds <- fread2(file.path("..", "QC_project", "datos", "Pregval", table_name),
+               na.strings = "",
+  # read code columns as character    
+  colClasses = list(character = 13:72)) |> 
+  filter(sip %in% sips_empadronados)
+
+# CONSIGN
+# load table-----------------------------------------------------------------
+# mbds <- fread2(file.path("datos", "Consign", "mbds.csv"))
+
+# PREGVAL 2009-2012
+# load table-----------------------------------------------------------------
+# mbds <- fread2(file.path("datos", "Pregval", "mbds_2009_2012_clean.csv"))
+
+# PREGVAL 2013-2017
+# load table-----------------------------------------------------------------
+# mbds <- fread2(file.path("datos", "Pregval", "mbds_2013_2017_clean.csv"))
+
+# PREGVAL 2018-2021
+# load table-----------------------------------------------------------------
+# mbds <- fread2(file.path("datos", "Pregval", "mbds_2018_2021_clean.csv"))
+
+```
+
+The table to be analysed is **`r table_name`**.
+
+```{r}
+# set the study variables----------------------------------------------------
+start_of_study_period <- ymd("2009-01-01")
+end_of_study_period   <- ymd("2021-12-31")
+
+# PREGVAL 2009-2012----------------------------------------------------------
+if (str_detect(table_name, "2009_2012") == TRUE){
+  start_of_study_period <- ymd("2009-01-01")
+  end_of_study_period <- ymd("2012-12-31")
+}
+
+if (str_detect(table_name, "2013_2017") == TRUE){
+# PREGVAL 2013-2017----------------------------------------------------------
+  start_of_study_period <- ymd("2013-01-01")
+  end_of_study_period <- ymd("2017-12-31")
+}
+
+if (str_detect(table_name, "2018_2021") == TRUE){
+# PREGVAL 2018-2021----------------------------------------------------------
+  start_of_study_period <- ymd("2018-01-01")
+  end_of_study_period <- ymd("2021-12-31")
+}
+
+```
+
+```{r}
+# load names-----------------------------------------------------------------
+vid_names <- readRDS(file.path("..", "EHDEN", "Results", "vid_catalogue",
+                               "vid_names.RDS"))
+
+```
+
+```{r}
+# load population------------------------------------------------------------
+# sips_clean <- readRDS(file.path("..", "PREGVAL", "Results", 
+#                                 "sips", "sips_clean.RDS"))
+# sips_total <- sips_clean
+
+sips_total <- sips_empadronados
+
+
+```
+
+## Check variables
+
+```{r}
+# capture the names of the instance table------------------------------------
+instance_names <- mbds |> 
+  names() 
+
+```
+
+The variables extracted from mbds are: `r colorize(knitr::combine_words(instance_names), "blue")`.
+
+```{r}
+# check mandatory variables--------------------------------------------------
+missing_mandatory_vars <- vid_names$mbds_mandatory_names |> 
+  keep(~. %nin% instance_names)
+
+missing_mandatory_print <- "All mandatory vars are present"  
+
+if (missing_mandatory_vars |> length() > 0) missing_mandatory_print <-
+  glue("{knitr::combine_words(missing_mandatory_vars)} are missing")
+      
+color_mandatory_check <- if_else(missing_mandatory_vars |> length() > 0,
+                                 "red", "green")
+
+```
+
+### Check mandatory vars 
+
+`r colorize(missing_mandatory_print, color_mandatory_check)`.
+
+```{r}
+# check variables in full names----------------------------------------------
+missing_full_vars <- vid_names$mbds_all_names |> 
+  keep(~. %nin% instance_names)
+
+if(missing_full_vars |> length() > 0){
+missing_full_print <- glue("{knitr::combine_words(missing_full_vars)} were not extracted")
+}else{
+missing_full_print <- "All possible vars are present"
+}
+
+color_full_check <- if_else(missing_full_vars |> length() > 0,
+                                 "red", "green")
+
+```
+
+### Check all vars 
+
+`r colorize(missing_full_print, color_full_check)`.
+
+### Completeness
+
+In @fig-mbdscompleteness is shown the percentage of non-missing values for each variable. Non-mandatory variables are shown at the bottom of the figure.
+
+```{r}
+#| warning: false
+# clean and fix mbds----------------------------------------------------------
+# manipulate unknown values to NA (0_00, -1, -2, etc.)
+vector_of_nas <- c("", "0:00", "****", "0:DESCONOCIDA", "-1", "-2")
+
+```
+
+
+```{r}
+# function to check completeness---------------------------------------------
+check_completeness <- function(table, var){
+if (as_string(ensym(var)) %nin% names(mbds)) {
+  return(lst(missing_obs = nrow(mbds),
+           complete_pct = 0,
+           print_missing = "0%",
+           color_missing = "red"
+  ))
+  }
+total_obs <- table |> nrow() 
+missing_obs <-  table |> filter(is.na({{var}})) |> nrow()
+complete_pct <- 100 * ((total_obs - missing_obs)/total_obs) |> 
+  round(3)
+  
+print_missing <- glue("{complete_pct}%")
+color_missing <- if_else(missing_obs == 0, "green", "orange")
+return(lst(missing_obs,
+           complete_pct,
+           print_missing,
+           color_missing
+            ))
+}
+
+```
+
+```{r}
+# apply the function to each var---------------------------------------------
+miss_fecha_ingreso         <- check_completeness(mbds, fecha_ingreso)
+miss_fecha_alta            <- check_completeness(mbds, fecha_alta)
+miss_dpto_cod              <- check_completeness(mbds, dpto_cod)
+miss_hosp_cod              <- check_completeness(mbds, hosp_cod)
+miss_serv_ing_cod          <- check_completeness(mbds, serv_ing_cod)
+miss_serv_ing_desc         <- check_completeness(mbds, serv_ing_desc)
+miss_tipo_activ            <- check_completeness(mbds, tipo_activ)
+miss_circ_ing_cod          <- check_completeness(mbds, circ_ing_cod)
+miss_circ_ing_desc         <- check_completeness(mbds, circ_ing_desc)
+miss_circ_alta_cod         <- check_completeness(mbds, circ_alta_cod)
+miss_d1                    <- check_completeness(mbds, d1)
+miss_d2                    <- check_completeness(mbds, d2)
+miss_d3                    <- check_completeness(mbds, d3)
+miss_tipo_codigo           <- check_completeness(mbds, tipo_codigo)
+miss_fecha_parto           <- check_completeness(mbds, fecha_parto)
+
+
+```
+
+```{r}
+# ensamble the missings------------------------------------------------------
+tibble_missings <- data.frame(var = vid_names$mbds_all_names,
+                pct = map_dbl(vid_names$mbds_all_names, 
+                ~check_completeness(mbds, var = !!sym(.x))$complete_pct),
+                complete = map_chr(vid_names$mbds_all_names, 
+                ~check_completeness(mbds, var = !!sym(.x))$print_missing)) |> 
+  as_tibble() |> 
+  mutate(var = fct_rev(fct_inorder(var))) |> 
+  mutate(type = if_else(var %in% vid_names$mbds_mandatory_names, 
+                        "#9473d8", "#f2cce4"))
+
+```
+
+<br>
+
+```{r, fig.height=20, fig.width=10}
+#| label: fig-mbdscompleteness
+#| fig-cap: "Variables completeness"
+# plot the missings----------------------------------------------------------
+
+ggplot(tibble_missings, aes(y = var, x = pct)) +
+  geom_col(aes(fill = type)) + 
+  geom_text(aes(label = complete),
+            colour = "black",
+            position = position_nudge(7),
+            size = 7,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Variable") +
+  scale_x_continuous(name = "Completeness", 
+                     breaks = c(0, 25, 50, 75, 100),
+                     labels = scales::comma)
+  
+```
+
+<br>
+
+## Check content
+
+```{r}
+# total number of rows-------------------------------------------------------
+total_mbds_observations <- mbds |> nrow()
+  
+```
+
+The **mbds** table has a total of **n = `r total_mbds_observations |> pretty2()` observations**.
+
+### Population
+
+```{r}
+# total distinct individuals-------------------------------------------------
+distinct_sips_n <- mbds |> distinct(sip) |> nrow() 
+distinct_sips <- distinct_sips_n |> pretty2()
+total_sips <- sips_total |> length() |> pretty2()
+# individuals in population--------------------------------------------------
+sips_in_pop_n <- mbds |> 
+  distinct(sip) |> 
+  filter(sip %in% sips_total) |> 
+  nrow() 
+sips_in_pop <- sips_in_pop_n |> pretty2()
+
+color_in_pop <- if_else(sips_in_pop < distinct_sips, "red", "green")
+
+print_pop <- if_else(color_in_pop == "red", 
+             glue("From these, there are {distinct_sips_n - sips_in_pop_n} individuals that are not included in the target population"),
+             glue("All the individuals are included in the target population"))
+
+percent_sips <- (sips_in_pop_n /  sips_total |> length()) * 100
+
+print_percent_sips <- glue("{percent_sips |> round(2)}%")
+
+```
+
+- In **mbds** table there are `r colorize(distinct_sips, "blue")` distinct individuals. `r colorize(print_pop, color_in_pop)`. Therefore, there are `r colorize(sips_in_pop, color_in_pop)` individuals included in the target population out of the `r colorize(total_sips, "purple")` total individuals in the cohort. These represents `r colorize(print_percent_sips, "blue")` of the total.
+
+```{r}
+# number of individuals per year---------------------------------------------
+mbds_sips_per_year <- mbds |> 
+  filter(sip %in% sips_total) |> 
+  group_by(year = year(fecha_ingreso)) |> 
+  distinct(sip) |> 
+  count(year) |> 
+  ungroup()
+
+```
+
+- The @tbl-sipsperyear shows the number of individuals per year of the study period.
+
+<br>
+
+```{r}
+#| label: tbl-sipsperyear
+#| tbl-cap-location: top
+#| tbl-cap: "Number of individuals per year of calculation"
+# create table of number of individuals per year-----------------------------
+mbds_sips_per_year |> 
+  gt(id = "sipsperyear") |>  # need to name the table to apply CSS
+  cols_label(year = "Year of admission",
+             n = "Count of distinct individuals") |> 
+  cols_align(
+  align = c("center"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "center", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #sipsperyear tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+### Date of the admission
+
+```{r}
+# check if the date of the admission is inside the study period--------------
+date_of_visit_print <- "All dates are inside the study period"  
+color_of_visit_print <- "green"
+
+n_visits_ok <- mbds |> mutate(date_of_visit_ok = between(fecha_ingreso, 
+                      start_of_study_period, end_of_study_period)) |> 
+  summarise(n = 100 * mean(date_of_visit_ok, na.rm = TRUE)) |> 
+  pull()
+
+if (n_visits_ok < 100){
+
+n_visits_before <- mbds |> 
+  mutate(date_of_visit_before = fecha_ingreso < start_of_study_period) |> 
+  summarise(n = 100 * mean(date_of_visit_before, na.rm = TRUE)) |> 
+  pull() |> round(2)
+
+n_visits_after <- mbds |> 
+  mutate(date_of_visit_after = fecha_ingreso > end_of_study_period) |> 
+  summarise(n = 100 * mean(date_of_visit_after, na.rm = TRUE)) |> 
+  pull() |> round(2)
+
+# n_visits_na <- mbds |> mutate(date_of_visit_na = is.na(fecha_ingreso)) |> 
+#   summarise(n = 100 * mean(date_of_visit_na)) |> pull()
+
+date_of_visit_print <- glue("There are dates outside the study period. From the non-missing dates: \n
+                            * **{n_visits_ok |> round(2)}%** are inside the study period. \n
+                            * **{n_visits_before}%** occurred before the start of the study period. \n
+                            * **{n_visits_after}%** occurred after the end of the study period") 
+color_of_visit_print <- "red"
+}      
+
+min_date <- mbds |> filter(!is.na(fecha_ingreso)) |>
+  summarise(min(fecha_ingreso)) |> pull()
+max_date <- mbds |> filter(!is.na(fecha_ingreso)) |>
+  summarise(max(fecha_ingreso)) |> pull()
+  
+```
+
+The variable *fecha_ingreso* is missing in **`r miss_fecha_ingreso$missing_obs` observations**, so it is `r colorize(miss_fecha_ingreso$print_missing, miss_fecha_ingreso$color_missing)` complete. The minimum and maximum date are ***`r min_date`*** and ***`r max_date`*** respectively. @tbl-fechaing shows the number of admissions per year of *fecha_ingreso*.
+
+`r colorize(date_of_visit_print, color_of_visit_print)`.
+
+<br>
+
+```{r}
+#| label: tbl-fechaing
+#| tbl-cap-location: top
+#| tbl-cap: "Number of admissions each year of calculation"
+# create table of number of admissions per year------------------------------
+mbds |> 
+  count(year = year(fecha_ingreso)) |> 
+  gt(id = "fechaing") |>  # need to name the table to apply CSS
+  cols_label(year = "Year of the admission",
+             n = "Count") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #fechaing tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+```{r}
+# check month and year of fecha_ingreso-------------------------------------
+mbds_month_year_visit_date <- mbds |> 
+  count(month = month(fecha_ingreso, 
+                      label = TRUE,
+                      abbr = FALSE,
+                      locale = "EN"), 
+        year = year(fecha_ingreso),
+        name = "n_month_year") |> 
+  arrange(year, month)
+
+mbds_month_year_visit_date_min <- mbds_month_year_visit_date |> 
+  filter(n_month_year == min(n_month_year))
+mbds_month_year_visit_date_max <- mbds_month_year_visit_date |> 
+  filter(n_month_year == max(n_month_year))
+
+print_month_year_visit_date_min <- glue(
+  "{mbds_month_year_visit_date_min |> pull(month)} {mbds_month_year_visit_date_min |> pull(year)} with n = {mbds_month_year_visit_date_min |> pull(n_month_year)}" )
+
+print_month_year_visit_date_max <- glue(
+  "{mbds_month_year_visit_date_max |> pull(month)} {mbds_month_year_visit_date_max |> pull(year)} with n = {mbds_month_year_visit_date_max |> pull(n_month_year)}" )
+
+```
+
+The month and year with less admissions was `r colorize(print_month_year_visit_date_min, "blue")` and the month and year with more admissions was `r colorize(print_month_year_visit_date_max, "purple")`.
+
+In @fig-mbdsingresoyear, @fig-mbdsingresomonth, and @fig-mbdsingresoday are presented the frequencies of years, months, and days of the admissions respectively.
+
+<br>
+
+```{r}
+#| label: fig-mbdsingresoyear
+#| fig-cap: "Admission year"
+# plot year of fecha_ingreso------------------------------------------------
+mbds_year_visit <- mbds |> 
+  count(year_visit = year(fecha_ingreso), name = "n_year")
+
+ggplot(mbds_year_visit) +
+  geom_col(aes(x = year_visit, y = n_year), fill = "#9473d8") +
+  xlab("Admission year") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-mbdsingresomonth
+#| fig-cap: "Admission month"
+# plot month of fecha_ingreso-----------------------------------------------
+mbds_month_visit <- mbds |> 
+  count(month_visit = month(fecha_ingreso, label = TRUE,
+                                locale = "EN"), name = "n_month")
+
+ggplot(mbds_month_visit) +
+  geom_col(aes(x = month_visit, y = n_month), fill = "#9473d8") +
+  xlab("Admission month") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-mbdsingresoday
+#| fig-cap: "Admission day"
+# plot day of fecha_ingreso-------------------------------------------------
+mbds_day_visit <- mbds |> 
+  count(day_visit = day(fecha_ingreso), name = "n_day")
+
+ggplot(mbds_day_visit) +
+  geom_col(aes(x = day_visit, y = n_day), fill = "#9473d8") +
+  scale_x_continuous(name = "Admission day", 
+                   breaks = 1:31, labels = 1:31) +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+
+### Date of the discharge
+
+```{r}
+# check if the date of the visit is inside the study period------------------
+date_of_visit_print <- "All dates are inside the study period"  
+color_of_visit_print <- "green"
+
+n_visits_ok <- mbds |> mutate(date_of_visit_ok = between(fecha_alta, 
+                      start_of_study_period, end_of_study_period)) |> 
+  summarise(n = 100 * mean(date_of_visit_ok, na.rm = TRUE)) |> 
+  pull()
+
+if (n_visits_ok < 100){
+
+n_visits_before <- mbds |> 
+  mutate(date_of_visit_before = fecha_alta < start_of_study_period) |> 
+  summarise(n = 100 * mean(date_of_visit_before, na.rm = TRUE)) |> 
+  pull() |> round(2)
+
+n_visits_after <- mbds |> 
+  mutate(date_of_visit_after = fecha_alta > end_of_study_period) |> 
+  summarise(n = 100 * mean(date_of_visit_after, na.rm = TRUE)) |> 
+  pull() |> round(2)
+
+# n_visits_na <- mbds |> mutate(date_of_visit_na = is.na(fecha_alta)) |> 
+#   summarise(n = 100 * mean(date_of_visit_na)) |> pull()
+
+date_of_visit_print <- glue("There are dates outside the study period. From the non-missing dates: \n
+                            * **{n_visits_ok |> round(2)}%** are inside the study period. \n
+                            * **{n_visits_before}%** occurred before the start of the study period. \n
+                            * **{n_visits_after}%** occurred after the end of the study period") 
+color_of_visit_print <- "red"
+}      
+
+min_date <- mbds |> filter(!is.na(fecha_alta)) |>
+  summarise(min(fecha_alta)) |> pull()
+max_date <- mbds |> filter(!is.na(fecha_alta)) |>
+  summarise(max(fecha_alta)) |> pull()
+
+```
+
+The variable *fecha_alta* is missing in **`r miss_fecha_alta$missing_obs` observations**, so it is `r colorize(miss_fecha_alta$print_missing, miss_fecha_alta$color_missing)` complete. The minimum and maximum date are ***`r min_date`*** and ***`r max_date`*** respectively. @tbl-fechaalta shows the number of discharges per year of *fecha_alta*.
+
+`r colorize(date_of_visit_print, color_of_visit_print)`.
+
+<br>
+
+```{r}
+#| label: tbl-fechaalta
+#| tbl-cap-location: top
+#| tbl-cap: "Number of discharges each year of calculation"
+# create table of number of visits per year----------------------------------
+mbds |> 
+  count(year = year(fecha_alta)) |> 
+  gt(id = "fechaalta") |>  # need to name the table to apply CSS
+  cols_label(year = "Year of the discharge",
+             n = "Count") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #fechaalta tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+```{r}
+# check month and year of fecha_alta-------------------------------------
+mbds_month_year_visit_date <- mbds |> 
+  count(month = month(fecha_alta, 
+                      label = TRUE,
+                      abbr = FALSE,
+                      locale = "EN"), 
+        year = year(fecha_alta),
+        name = "n_month_year") |> 
+  arrange(year, month)
+
+mbds_month_year_visit_date_min <- mbds_month_year_visit_date |> 
+  filter(n_month_year == min(n_month_year))
+mbds_month_year_visit_date_max <- mbds_month_year_visit_date |> 
+  filter(n_month_year == max(n_month_year))
+
+print_month_year_visit_date_min <- glue(
+  "{mbds_month_year_visit_date_min |> pull(month)} {mbds_month_year_visit_date_min |> pull(year)} with n = {mbds_month_year_visit_date_min |> pull(n_month_year)}" )
+
+print_month_year_visit_date_max <- glue(
+  "{mbds_month_year_visit_date_max |> pull(month)} {mbds_month_year_visit_date_max |> pull(year)} with n = {mbds_month_year_visit_date_max |> pull(n_month_year)}" )
+
+```
+
+The month and year with less discharges was `r colorize(print_month_year_visit_date_min, "blue")` and the month and year with more discharges was `r colorize(print_month_year_visit_date_max, "purple")`.
+
+In @fig-mbdsaltayear, @fig-mbdsaltamonth, and @fig-mbdsaltaday are presented the frequencies of years, months, and days of the visits respectively.
+
+<br>
+
+```{r}
+#| label: fig-mbdsaltayear
+#| fig-cap: "Discharge year"
+# plot year of fecha_alta------------------------------------------------
+mbds_year_visit <- mbds |> 
+  count(year_visit = year(fecha_alta), name = "n_year")
+
+ggplot(mbds_year_visit) +
+  geom_col(aes(x = year_visit, y = n_year), fill = "#9473d8") +
+  xlab("Discharge year") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-mbdsaltamonth
+#| fig-cap: "Discharge month"
+# plot month of fecha_alta-----------------------------------------------
+mbds_month_visit <- mbds |> 
+  count(month_visit = month(fecha_alta, label = TRUE,
+                                locale = "EN"), name = "n_month")
+
+ggplot(mbds_month_visit) +
+  geom_col(aes(x = month_visit, y = n_month), fill = "#9473d8") +
+  xlab("Discharge month") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-mbdsaltaday
+#| fig-cap: "Discharge day"
+# plot day of fecha_alta-------------------------------------------------
+mbds_day_visit <- mbds |> 
+  count(day_visit = day(fecha_alta), name = "n_day")
+
+ggplot(mbds_day_visit) +
+  geom_col(aes(x = day_visit, y = n_day), fill = "#9473d8") +
+  scale_x_continuous(name = "Discharge day", 
+                   breaks = 1:31, labels = 1:31) +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+
+### Visit service
+
+The variable *serv_ing_desc* is missing in **`r miss_serv_ing_desc$missing_obs` observations**, so it is `r colorize(miss_serv_ing_desc$print_missing, miss_serv_ing_desc$color_missing)` complete. @tbl-visit shows all the services used in the primary care visits arranged by alphabetic order. @fig-mbdsserv shows the count of the utilization of each visit service. Finally, @fig-mbdsservyear shows the count of visits for the 10 most used services per year.
+
+<br>
+
+```{r}
+#| label: tbl-visit
+#| tbl-cap-location: top
+#| tbl-cap: "Healths services used in the primary care visits"
+# create table of serv_ing_desc----------------------------------------------
+
+mbds |> 
+  tabyl(serv_ing_desc) |>
+  adorn_pct_formatting(digits = 2) |> 
+  gt(id = "serv") |>  # need to name the table to apply CSS
+  cols_label(serv_ing_desc = "Service",
+             n = "Count",
+             percent = "Percentage") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |>
+  tab_options(
+    container.height = "700px"
+  ) |>
+  opt_css(
+    css = "
+    #serv tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+```{r}
+#| label: fig-mbdsserv
+#| fig-cap: "Primary care visit services"
+# plot serv_ing_desc-----------------------------------------------------------
+x_pos <- nrow(mbds) / 10
+
+mbds |>
+  mutate(serv_ing_desc = fct_lump_n(fct_infreq(serv_ing_desc), n = 10, 
+                                   other_level = "OTROS") |> fct_rev()) |> 
+  count(serv_ing_desc) |>
+  mutate(n_all = sum(n)) |> 
+  mutate(percent = glue("{round(100 * n / n_all, 1)}%")) |> 
+  # make colour for na
+  mutate(fill_color = if_else(is.na(serv_ing_desc),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = serv_ing_desc, x = n)) +
+  geom_col(aes(fill = fill_color)) + 
+  geom_text(aes(label = percent),
+            colour = "black",
+            size = 7,
+            fontface = "bold",
+            x = x_pos
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Health Service") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(axis.text = element_text(size = 20))
+
+```
+
+<br>
+
+```{r}
+#| label: fig-mbdsservyear
+#| fig-cap: "Most used primary care visit services per year"
+# plot serv_ing_desc per year--------------------------------------------------
+
+xpos2 <- x_pos/(mbds |> distinct(year(fecha_ingreso)) |> nrow())
+
+mbds |>
+  mutate(serv_ing_desc = fct_lump_n(fct_infreq(serv_ing_desc), n = 10, 
+                                   other_level = "OTROS") |> fct_rev()) |>
+  mutate(year = year(fecha_ingreso)) |>
+  count(year, serv_ing_desc) |>
+  group_by(year) |> 
+  mutate(n_year = sum(n)) |> 
+  ungroup() |>
+  mutate(percent = glue("{round(100 * n / n_year, 1)}%")) |> 
+# make colour for na
+  mutate(fill_color = if_else(is.na(serv_ing_desc),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = serv_ing_desc, x = n)) +
+  geom_col(aes(fill = fill_color)) +
+  facet_wrap(~year, ncol = 4) +
+  geom_text(aes(label = percent),
+            colour = "black",
+            size = 7,
+            fontface = "bold",
+            x = xpos2
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Health Service") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(
+    axis.text.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20, angle = 90))
+
+```
+
+<br>
+ 
+### Diagnoses codes
+
+The variable *d1* is missing in **`r miss_d1$missing_obs` observations**, so it is `r colorize(miss_d1$print_missing, miss_d1$color_missing)` complete. @fig-mbdscode shows the most employed diagnoses codes. Finally, @fig-mbdscodeyear shows the count of the 10 most employed codes per year.
+
+<br>
+
+```{r}
+#| label: fig-mbdscode
+#| fig-cap: "Diagnosis codes used in primary care visits"
+# plot d1-----------------------------------------------------------
+x_pos <- nrow(mbds)/10
+
+mbds |>
+  mutate(d1 = fct_lump_n(fct_infreq(d1), n = 10, 
+                                   other_level = "OTROS") |> fct_rev()) |>
+  count(d1) |> 
+  mutate(n_all = sum(n)) |> 
+  ungroup() |>
+  mutate(percent = glue("{round(100 * n / n_all, 1)}%")) |> 
+# make colour for na
+  mutate(fill_color = if_else(is.na(d1),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = d1, x = n)) +
+  geom_col(aes(fill = fill_color)) +
+  geom_text(aes(label = percent),
+            colour = "black",
+            size = 7,
+            x = x_pos,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Diagnosis Codes") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(axis.text = element_text(size = 20))
+
+```
+
+
+<br>
+
+```{r}
+#| label: fig-mbdscodeyear
+#| fig-cap: "Diagnosis codes used in primary care visits per year"
+# plot d1 per year-----------------------------------------------------
+
+mbds |>
+  mutate(d1 = fct_lump_n(fct_infreq(d1), n = 10, 
+                                   other_level = "OTROS") |> fct_rev()) |>
+  mutate(year = year(fecha_ingreso)) |>
+  count(year, d1) |>
+  group_by(year) |> 
+  mutate(n_year = sum(n)) |> 
+  ungroup() |>
+  mutate(percent = glue("{round(100 * n / n_year, 1)}%")) |> 
+# make colour for na
+  mutate(fill_color = if_else(is.na(d1),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = d1, x = n)) +
+  geom_col(aes(fill = fill_color)) +
+  facet_wrap(~year, ncol = 4) +
+  geom_text_repel(aes(label = percent),
+            colour = "black",
+            size = 7,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Diagnosis Codes") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(axis.text.x = element_text(size = 20, angle = 90))
+
+```
+
+<br>
+
+### Code vocabulary
+
+The variable *tipo_codigo* is missing in **`r miss_tipo_codigo$missing_obs` observations**, so it is `r colorize(miss_tipo_codigo$print_missing, miss_tipo_codigo$color_missing)` complete. @fig-mbdstipo shows the count of the utilization of each visit service. Finally, @fig-mbdstipoyear shows the count of visits for the 10 most used services per year.
+
+<br>
+
+```{r}
+#| label: fig-mbdstipo
+#| fig-cap: "Code vocabularies used in primary care visits"
+# plot tipo_codigo-----------------------------------------------------------
+mbds |>
+  tabyl(tipo_codigo) |>
+  adorn_pct_formatting() |> 
+  mutate(tipo_codigo = fct_reorder(tipo_codigo, n)) |> 
+  # make colour for na
+  mutate(fill_color = if_else(is.na(tipo_codigo),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = tipo_codigo, x = n)) +
+  geom_col(aes(fill = fill_color)) + 
+  geom_text(aes(label = percent),
+            colour = "black",
+            position = position_nudge(100),
+            size = 7,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Code Vocabulary") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(axis.text.y = element_text(size = 20))
+
+```
+
+
+<br>
+
+```{r}
+#| label: fig-mbdstipoyear
+#| fig-cap: "Code vocabularies used in primary care visits per year"
+# plot tipo_codigo per year--------------------------------------------------
+
+mbds |>
+  mutate(tipo_codigo = fct_infreq(tipo_codigo) |> fct_rev()) |>
+  mutate(year = year(fecha_ingreso)) |>
+  count(year, tipo_codigo) |>
+  group_by(year) |> 
+  mutate(n_year = sum(n)) |> 
+  ungroup() |>
+  mutate(percent = glue("{round(100 * n / n_year, 1)}%")) |> 
+# make colour for na
+  mutate(fill_color = if_else(is.na(tipo_codigo),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = tipo_codigo, x = n)) +
+  geom_col(aes(fill = fill_color)) +
+  facet_wrap(~year, ncol = 4) +
+  geom_text_repel(aes(label = percent),
+            colour = "black",
+            size = 7,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Code Vocabulary") +
+  scale_x_continuous(name = "Count", labels = scales::label_comma()) +
+  theme(axis.text.x = element_text(size = 20, angle = 90))
+
+```
+
+<br>
+
+### Date of the labour
+
+```{r}
+# check if the date of the visit is inside the study period------------------
+date_of_visit_print <- "All dates are inside the study period"  
+color_of_visit_print <- "green"
+
+n_visits_ok <- mbds |> mutate(date_of_visit_ok = between(fecha_parto, 
+                      start_of_study_period, end_of_study_period)) |> 
+  summarise(n = 100 * mean(date_of_visit_ok, na.rm = TRUE)) |> 
+  pull()
+
+if (n_visits_ok < 100){
+
+n_visits_before <- mbds |> 
+  mutate(date_of_visit_before = fecha_parto < start_of_study_period) |> 
+  summarise(n = 100 * mean(date_of_visit_before, na.rm = TRUE)) |> 
+  pull() |> round(2)
+
+n_visits_after <- mbds |> 
+  mutate(date_of_visit_after = fecha_parto > end_of_study_period) |> 
+  summarise(n = 100 * mean(date_of_visit_after, na.rm = TRUE)) |> 
+  pull() |> round(2)
+
+# n_visits_na <- mbds |> mutate(date_of_visit_na = is.na(fecha_parto)) |> 
+#   summarise(n = 100 * mean(date_of_visit_na)) |> pull()
+
+date_of_visit_print <- glue("There are dates outside the study period. From the non-missing dates: \n
+                            * **{n_visits_ok |> round(2)}%** are inside the study period. \n
+                            * **{n_visits_before}%** occurred before the start of the study period. \n
+                            * **{n_visits_after}%** occurred after the end of the study period") 
+color_of_visit_print <- "red"
+}      
+
+min_date <- mbds |> filter(!is.na(fecha_parto)) |> 
+summarise(min(fecha_parto)) |> pull()
+max_date <- mbds |> filter(!is.na(fecha_parto)) |> 
+summarise(max(fecha_parto)) |> pull()
+
+```
+
+The variable *fecha_parto* is missing in **`r miss_fecha_parto$missing_obs` observations**, so it is `r colorize(miss_fecha_parto$print_missing, miss_fecha_parto$color_missing)` complete. The minimum and maximum date are ***`r min_date`*** and ***`r max_date`*** respectively. @tbl-fechaparto shows the number of discharges per year of *fecha_parto*.
+
+`r colorize(date_of_visit_print, color_of_visit_print)`.
+
+<br>
+
+```{r}
+#| label: tbl-fechaparto
+#| tbl-cap-location: top
+#| tbl-cap: "Number of discharges each year of calculation"
+# create table of number of visits per year----------------------------------
+mbds |> 
+  count(year = year(fecha_parto)) |> 
+  gt(id = "fechaparto") |>  # need to name the table to apply CSS
+  cols_label(year = "Year of the labour",
+             n = "Count") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #fechaparto tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+```{r}
+# check month and year of fecha_parto-------------------------------------
+mbds_month_year_visit_date <- mbds |> 
+  count(month = month(fecha_parto, 
+                      label = TRUE,
+                      abbr = FALSE,
+                      locale = "EN"), 
+        year = year(fecha_parto),
+        name = "n_month_year") |> 
+  arrange(year, month)
+
+mbds_month_year_visit_date_min <- mbds_month_year_visit_date |> 
+  filter(n_month_year == min(n_month_year))
+mbds_month_year_visit_date_max <- mbds_month_year_visit_date |> 
+  filter(n_month_year == max(n_month_year))
+
+print_month_year_visit_date_min <- glue(
+  "{mbds_month_year_visit_date_min |> pull(month)} {mbds_month_year_visit_date_min |> pull(year)} with n = {mbds_month_year_visit_date_min |> pull(n_month_year)}" )
+
+print_month_year_visit_date_max <- glue(
+  "{mbds_month_year_visit_date_max |> pull(month)} {mbds_month_year_visit_date_max |> pull(year)} with n = {mbds_month_year_visit_date_max |> pull(n_month_year)}" )
+
+```
+
+The month and year with less labours was `r colorize(print_month_year_visit_date_min, "blue")` and the month and year with more labours was `r colorize(print_month_year_visit_date_max, "purple")`.
+
+In @fig-mbdslabouryear, @fig-mbdslabourmonth, and @fig-mbdslabourday are presented the frequencies of years, months, and days of the visits respectively.
+
+<br>
+
+```{r}
+#| label: fig-mbdslabouryear
+#| fig-cap: "Labour year"
+# plot year of fecha_parto------------------------------------------------
+mbds_year_visit <- mbds |>
+  filter(!is.na(fecha_parto)) |> 
+  count(year_visit = year(fecha_parto), name = "n_year")
+
+ggplot(mbds_year_visit) +
+  geom_col(aes(x = year_visit, y = n_year), fill = "#9473d8") +
+  xlab("Labour year") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-mbdslabourmonth
+#| fig-cap: "Labour month"
+# plot month of fecha_parto-----------------------------------------------
+mbds_month_visit <- mbds |>
+  filter(!is.na(fecha_parto)) |> 
+  count(month_visit = month(fecha_parto, label = TRUE,
+                                locale = "EN"), name = "n_month")
+
+ggplot(mbds_month_visit) +
+  geom_col(aes(x = month_visit, y = n_month), fill = "#9473d8") +
+  xlab("Labour month") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-mbdslabourday
+#| fig-cap: "Labour day"
+# plot day of fecha_parto-------------------------------------------------
+mbds_day_visit <- mbds |>
+  filter(!is.na(fecha_parto)) |> 
+  count(day_visit = day(fecha_parto), name = "n_day")
+
+ggplot(mbds_day_visit) +
+  geom_col(aes(x = day_visit, y = n_day), fill = "#9473d8") +
+  scale_x_continuous(name = "Labour day", 
+                   breaks = 1:31, labels = 1:31) +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

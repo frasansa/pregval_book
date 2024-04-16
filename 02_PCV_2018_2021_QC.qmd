@@ -1,0 +1,748 @@
+---
+title: "Quality Check: Processing PCV. Empadronados 2018-2021"
+---
+
+```{r}
+#| echo: false
+source("_common.R")
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+```{r }
+#| include: false
+# load libraries and functions-----------------------------------------------
+source(file.path("..", "scripts", "Librerias.R"))
+source(file.path("..", "scripts", "Funciones.R"))
+
+```
+
+```{css, echo = FALSE}
+.output {
+max-height: 500px;
+overflow-y: scroll;
+}
+
+```
+
+## Input
+
+```{r}
+# read empadronados
+sips_empadronados <- readRDS(file.path("..", "PREGVAL", "Results", "sips", 
+                           "sips_empadronados.RDS"))
+
+```
+
+```{r}
+# select the input-----------------------------------------------------------
+table_name <- "pcv_2018_2021_clean.csv"
+pcv <- fread2(file.path("..", "QC_project", "datos", "Pregval", 
+                        table_name)) |>
+  filter(sip %in% sips_empadronados)
+
+# CONSIGN
+# load table-----------------------------------------------------------------
+# pcv <- fread2(file.path("datos", "Consign", "pcv.csv"))
+
+# PREGVAL 2009-2012
+# load table-----------------------------------------------------------------
+# pcv <- fread2(file.path("datos", "Pregval", "pcv_2009_2012_clean.csv"))
+
+# PREGVAL 2013-2017
+# load table-----------------------------------------------------------------
+# pcv <- fread2(file.path("datos", "Pregval", "pcv_2013_2017_clean.csv"))
+
+# PREGVAL 2018-2021
+# load table-----------------------------------------------------------------
+# pcv <- fread2(file.path("datos", "Pregval", "pcv_2018_2021_clean.csv"))
+
+
+
+```
+
+The table to be analysed is **`r table_name`**.
+
+```{r}
+# set the study variables----------------------------------------------------
+start_of_study_period <- ymd("2009-01-01")
+end_of_study_period   <- ymd("2021-12-31")
+
+# PREGVAL 2009-2012----------------------------------------------------------
+if (str_detect(table_name, "2009_2012") == TRUE){
+  start_of_study_period <- ymd("2009-01-01")
+  end_of_study_period <- ymd("2012-12-31")
+}
+
+if (str_detect(table_name, "2013_2017") == TRUE){
+# PREGVAL 2013-2017----------------------------------------------------------
+  start_of_study_period <- ymd("2013-01-01")
+  end_of_study_period <- ymd("2017-12-31")
+}
+
+if (str_detect(table_name, "2018_2021") == TRUE){
+# PREGVAL 2018-2021----------------------------------------------------------
+  start_of_study_period <- ymd("2018-01-01")
+  end_of_study_period <- ymd("2021-12-31")
+}
+
+```
+
+```{r}
+# load names-----------------------------------------------------------------
+vid_names <- readRDS(file.path("..", "EHDEN", "Results", "vid_catalogue",
+                               "vid_names.RDS"))
+
+```
+
+```{r}
+# load population------------------------------------------------------------
+# sips_clean <- readRDS(file.path("..", "PREGVAL", "Results", 
+#                                 "sips", "sips_clean.RDS"))
+# sips_total <- sips_clean
+
+sips_total <- sips_empadronados
+
+
+```
+
+## Check variables
+
+```{r}
+# capture the names of the instance table------------------------------------
+instance_names <- pcv |> 
+  names() 
+
+```
+
+The variables extracted from PCV are: `r colorize(knitr::combine_words(instance_names), "blue")`.
+
+```{r}
+# check mandatory variables--------------------------------------------------
+missing_mandatory_vars <- vid_names$pcv_mandatory_names |> 
+  keep(~. %nin% instance_names)
+
+missing_mandatory_print <- "All mandatory vars are present"  
+
+if (missing_mandatory_vars |> length() > 0) missing_mandatory_print <-
+  glue("{knitr::combine_words(missing_mandatory_vars)} are missing")
+      
+color_mandatory_check <- if_else(missing_mandatory_vars |> length() > 0,
+                                 "red", "green")
+
+```
+
+### Check mandatory vars 
+
+`r colorize(missing_mandatory_print, color_mandatory_check)`.
+
+```{r}
+# check variables in full names----------------------------------------------
+missing_full_vars <- vid_names$pcv_all_names |> 
+  keep(~. %nin% instance_names)
+
+if(missing_full_vars |> length() > 0){
+missing_full_print <- glue("{knitr::combine_words(missing_full_vars)} were not extracted")
+}else{
+missing_full_print <- "All possible vars are present"
+}
+
+color_full_check <- if_else(missing_full_vars |> length() > 0,
+                                 "red", "green")
+
+```
+
+### Check all vars 
+
+`r colorize(missing_full_print, color_full_check)`.
+
+### Completeness
+
+In @fig-ccompleteness is shown the percentage of non-missing values for each variable. Non-mandatory variables are shown at the bottom of the figure.
+
+```{r}
+#| warning: false
+# clean and fix pcv----------------------------------------------------------
+# manipulate unknown values to NA (0_00, -1, -2, etc.)
+vector_of_nas <- c("", "0:00", "****", "0:DESCONOCIDA", "-1", "-2")
+
+```
+
+
+```{r}
+# function to check completeness---------------------------------------------
+check_completeness <- function(table, var){
+if (as_string(ensym(var)) %nin% names(pcv)) {
+  return(lst(missing_obs = nrow(pcv),
+           complete_pct = 0,
+           print_missing = "0%",
+           color_missing = "red"
+  ))
+  }
+total_obs <- table |> nrow() 
+missing_obs <-  table |> filter(is.na({{var}})) |> nrow()
+complete_pct <- 100 * ((total_obs - missing_obs)/total_obs) |> 
+  round(3)
+  
+print_missing <- glue("{complete_pct}%")
+color_missing <- if_else(missing_obs == 0, "green", "orange")
+return(lst(missing_obs,
+           complete_pct,
+           print_missing,
+           color_missing
+            ))
+}
+
+```
+
+```{r}
+# apply the function to each var---------------------------------------------
+miss_fecha_consulta       <- check_completeness(pcv, fecha_consulta)
+miss_serv_at_cod          <- check_completeness(pcv, serv_at_cod)
+miss_serv_at_desc         <- check_completeness(pcv, serv_at_desc)
+miss_diag_cod             <- check_completeness(pcv, diag_cod)
+miss_diag_desc            <- check_completeness(pcv, diag_desc)
+miss_tipo_codigo          <- check_completeness(pcv, tipo_codigo)
+
+```
+
+```{r}
+# ensamble the missings------------------------------------------------------
+tibble_missings <- data.frame(var = vid_names$pcv_all_names,
+                pct = map_dbl(vid_names$pcv_all_names, 
+                ~check_completeness(pcv, var = !!sym(.x))$complete_pct),
+                complete = map_chr(vid_names$pcv_all_names, 
+                ~check_completeness(pcv, var = !!sym(.x))$print_missing)) |> 
+  as_tibble() |> 
+  mutate(var = fct_rev(fct_inorder(var))) |> 
+  mutate(type = if_else(var %in% vid_names$pcv_mandatory_names, 
+                        "#9473d8", "#f2cce4"))
+
+```
+
+<br>
+
+```{r}
+#| label: fig-ccompleteness
+#| fig-cap: "Variables completeness"
+# plot the missings----------------------------------------------------------
+
+ggplot(tibble_missings, aes(y = var, x = pct)) +
+  geom_col(aes(fill = type)) + 
+  geom_text(aes(label = complete),
+            colour = "black",
+            position = position_nudge(7),
+            size = 7,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Variable") +
+  scale_x_continuous(name = "Completeness", 
+                     breaks = c(0, 25, 50, 75, 100),
+                     labels = scales::comma)
+  
+```
+
+<br>
+
+## Check content
+
+```{r}
+# total number of rows-------------------------------------------------------
+total_pcv_observations <- pcv |> nrow()
+  
+```
+
+The **PCV** table has a total of **n = `r total_pcv_observations |> pretty2()` observations**.
+
+### Population
+
+```{r}
+# total distinct individuals-------------------------------------------------
+distinct_sips_n <- pcv |> distinct(sip) |> nrow() 
+distinct_sips <- distinct_sips_n |> pretty2()
+total_sips <- sips_total |> length() |> pretty2()
+# individuals in population--------------------------------------------------
+sips_in_pop_n <- pcv |> 
+  distinct(sip) |> 
+  filter(sip %in% sips_total) |> 
+  nrow() 
+sips_in_pop <- sips_in_pop_n |> pretty2()
+
+color_in_pop <- if_else(sips_in_pop_n < distinct_sips_n, "red", "green")
+
+print_pop <- if_else(color_in_pop == "red", 
+             glue("From these, there are {distinct_sips_n - sips_in_pop_n} individuals that are not included in the target population"),
+             glue("All the individuals are included in the target population"))
+
+percent_sips <- (sips_in_pop_n /  sips_total |> length()) * 100
+
+print_percent_sips <- glue("{percent_sips |> round(2)}%")
+
+```
+
+- In **PCV** table there are `r colorize(distinct_sips, "blue")` distinct individuals. `r colorize(print_pop, color_in_pop)`. Therefore, there are `r colorize(sips_in_pop, color_in_pop)` individuals included in the target population out of the `r colorize(total_sips, "purple")` total individuals in the cohort. These represents `r colorize(print_percent_sips, "blue")` of the total.
+
+```{r}
+# number of individuals per year---------------------------------------------
+pcv_sips_per_year <- pcv |> 
+  filter(sip %in% sips_total) |> 
+  group_by(year = year(fecha_consulta)) |> 
+  distinct(sip) |> 
+  count(year) |> 
+  ungroup()
+
+```
+
+- The @tbl-sipsperyear shows the number of individuals per year of the study period.
+
+<br>
+
+```{r}
+#| label: tbl-sipsperyear
+#| tbl-cap-location: top
+#| tbl-cap: "Number of individuals per year of calculation"
+# create table of number of individuals per year-----------------------------
+pcv_sips_per_year |> 
+  gt(id = "sipsperyear") |>  # need to name the table to apply CSS
+  cols_label(year = "Year of visit",
+             n = "Count of distinct individuals") |> 
+  cols_align(
+  align = c("center"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "center", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #sipsperyear tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+### Date of the visit
+
+```{r}
+# check if the date of the visit is inside the study period------------------
+date_of_visit_print <- "All visits are inside the study period"  
+color_of_visit_print <- "green"
+
+n_visits_ok <- pcv |> mutate(date_of_visit_ok = between(fecha_consulta, 
+                      start_of_study_period, end_of_study_period)) |> 
+  summarise(n = 100 * mean(date_of_visit_ok, na.rm = TRUE)) |> 
+  pull()
+
+if (n_visits_ok < 100){
+
+n_visits_before <- pcv |> 
+  mutate(date_of_visit_before = fecha_consulta < start_of_study_period) |> 
+  summarise(n = 100 * mean(date_of_visit_before, na.rm = TRUE)) |> 
+  pull() |> round(2)
+
+n_visits_after <- pcv |> 
+  mutate(date_of_visit_after = fecha_consulta > end_of_study_period) |> 
+  summarise(n = 100 * mean(date_of_visit_after, na.rm = TRUE)) |> 
+  pull() |> round(2)
+
+# n_visits_na <- pcv |> mutate(date_of_visit_na = is.na(fecha_consulta)) |> 
+#   summarise(n = 100 * mean(date_of_visit_na)) |> pull()
+
+date_of_visit_print <- glue("There are visits outside the study period. From the non-missing visits: \n
+                            * **{n_visits_ok |> round(2)}%** are inside the study period. \n
+                            * **{n_visits_before}%** occurred before the start of the study period. \n
+                            * **{n_visits_after}%** occurred after the end of the study period") 
+color_of_visit_print <- "red"
+}      
+
+min_date <- pcv |> filter(!is.na(fecha_consulta)) |> 
+summarise(min(fecha_consulta)) |> pull()
+max_date <- pcv |> filter(!is.na(fecha_consulta)) |> 
+summarise(max(fecha_consulta)) |> pull()
+
+```
+
+The variable *fecha_consulta* is missing in **`r miss_fecha_consulta$missing_obs` observations**, so it is `r colorize(miss_fecha_consulta$print_missing, miss_fecha_consulta$color_missing)` complete. The minimum and maximum date are ***`r min_date`*** and ***`r max_date`*** respectively. @tbl-fechacons shows the number of visits per year of *fecha_consulta*.
+
+`r colorize(date_of_visit_print, color_of_visit_print)`.
+
+<br>
+
+```{r}
+#| label: tbl-fechacons
+#| tbl-cap-location: top
+#| tbl-cap: "Number of visits each year of calculation"
+# create table of number of visits per year-----------------------------
+pcv |> 
+  count(year = year(fecha_consulta)) |> 
+  gt(id = "fechacons") |>  # need to name the table to apply CSS
+  cols_label(year = "Year of the visit",
+             n = "Count") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |> 
+  opt_css(
+    css = "
+    #fechacons tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+```{r}
+# check month and year of fecha_consulta-------------------------------------
+pcv_month_year_visit_date <- pcv |> 
+  count(month = month(fecha_consulta, 
+                      label = TRUE,
+                      abbr = FALSE,
+                      locale = "EN"), 
+        year = year(fecha_consulta),
+        name = "n_month_year") |> 
+  arrange(year, month)
+
+pcv_month_year_visit_date_min <- pcv_month_year_visit_date |> 
+  filter(n_month_year == min(n_month_year))
+pcv_month_year_visit_date_max <- pcv_month_year_visit_date |> 
+  filter(n_month_year == max(n_month_year))
+
+print_month_year_visit_date_min <- glue(
+  "{pcv_month_year_visit_date_min |> pull(month)} {pcv_month_year_visit_date_min |> pull(year)} with n = {pcv_month_year_visit_date_min |> pull(n_month_year)}" )
+
+print_month_year_visit_date_max <- glue(
+  "{pcv_month_year_visit_date_max |> pull(month)} {pcv_month_year_visit_date_max |> pull(year)} with n = {pcv_month_year_visit_date_max |> pull(n_month_year)}" )
+
+```
+
+The month and year with less visits was `r colorize(print_month_year_visit_date_min, "blue")` and the month and year with more visits was `r colorize(print_month_year_visit_date_max, "purple")`.
+
+In @fig-cvisityear, @fig-cvisitmonth, and @fig-cvisitday are presented the frequencies of years, months, and days of the visits respectively.
+
+<br>
+
+```{r}
+#| label: fig-cvisityear
+#| fig-cap: "Visit year"
+# plot year of fecha_consulta------------------------------------------------
+pcv_year_visit <- pcv |> 
+  count(year_visit = year(fecha_consulta), name = "n_year")
+
+ggplot(pcv_year_visit) +
+  geom_col(aes(x = year_visit, y = n_year), fill = "#9473d8") +
+  xlab("Visit year") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-cvisitmonth
+#| fig-cap: "Visit month"
+# plot month of fecha_consulta-----------------------------------------------
+pcv_month_visit <- pcv |> 
+  count(month_visit = month(fecha_consulta, label = TRUE,
+                                locale = "EN"), name = "n_month")
+
+ggplot(pcv_month_visit) +
+  geom_col(aes(x = month_visit, y = n_month), fill = "#9473d8") +
+  xlab("Visit month") +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+```{r}
+#| label: fig-cvisitday
+#| fig-cap: "Visit day"
+# plot day of fecha_consulta-------------------------------------------------
+pcv_day_visit <- pcv |> 
+  count(day_visit = day(fecha_consulta), name = "n_day")
+
+ggplot(pcv_day_visit) +
+  geom_col(aes(x = day_visit, y = n_day), fill = "#9473d8") +
+  scale_x_continuous(name = "Visit day", 
+                   breaks = 1:31, labels = 1:31) +
+  scale_y_continuous(name = "Count", labels = scales::comma) 
+
+```
+
+<br>
+
+### Visit service
+
+The variable *serv_at_desc* is missing in **`r miss_serv_at_desc$missing_obs` observations**, so it is `r colorize(miss_serv_at_desc$print_missing, miss_serv_at_desc$color_missing)` complete. @tbl-visit shows all the services used in the primary care visits arranged by alphabetic order. @fig-cserv shows the count of the utilization of each visit service. Finally, @fig-cservyear shows the count of visits for the 10 most used services per year.
+
+<br>
+
+```{r}
+#| label: tbl-visit
+#| tbl-cap-location: top
+#| tbl-cap: "Healths services used in the primary care visits"
+# create table of serv_at_desc-----------------------------------------------
+
+pcv |> 
+  tabyl(serv_at_desc) |>
+  adorn_pct_formatting(digits = 2) |> 
+  gt(id = "serv") |>  # need to name the table to apply CSS
+  cols_label(serv_at_desc = "Service",
+             n = "Count",
+             percent = "Percentage") |> 
+  cols_align(
+  align = c("left"),
+  columns = everything()
+  ) |> 
+  tab_style(
+    style = list(
+      cell_fill(color = "#9473d8"),
+      cell_text(color = "white", align = "left", weight = "bold")
+    ),
+    locations = cells_column_labels()) |> 
+    opt_row_striping( row_striping = TRUE) |>
+  tab_options(
+    container.height = "700px"
+  ) |>
+  opt_css(
+    css = "
+    #serv tr:hover {
+    background-color: #f2cce4;
+    }
+    ")
+
+```
+
+<br>
+
+```{r}
+#| label: fig-cserv
+#| fig-cap: "Primary care visit services"
+# plot serv_at_desc-----------------------------------------------------------
+x_pos <- nrow(pcv) / 10
+
+pcv |>
+  mutate(serv_at_desc = fct_lump_n(fct_infreq(serv_at_desc), n = 10, 
+                                   other_level = "OTROS") |> fct_rev()) |> 
+  count(serv_at_desc) |>
+  mutate(n_all = sum(n)) |> 
+  mutate(percent = glue("{round(100 * n / n_all, 1)}%")) |> 
+  # make colour for na
+  mutate(fill_color = if_else(is.na(serv_at_desc),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = serv_at_desc, x = n)) +
+  geom_col(aes(fill = fill_color)) + 
+  geom_text(aes(label = percent),
+            colour = "black",
+            size = 7,
+            fontface = "bold",
+            x = x_pos
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Health Service") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(axis.text = element_text(size = 20))
+
+```
+
+<br>
+
+```{r}
+#| label: fig-cservyear
+#| fig-cap: "Most used primary care visit services per year"
+# plot serv_at_desc per year--------------------------------------------------
+
+xpos2 <- x_pos/(pcv |> distinct(year(fecha_consulta)) |> nrow())
+
+pcv |>
+  mutate(serv_at_desc = fct_lump_n(fct_infreq(serv_at_desc), n = 10, 
+                                   other_level = "OTROS") |> fct_rev()) |>
+  mutate(year = year(fecha_consulta)) |>
+  count(year, serv_at_desc) |>
+  group_by(year) |> 
+  mutate(n_year = sum(n)) |> 
+  ungroup() |>
+  mutate(percent = glue("{round(100 * n / n_year, 1)}%")) |> 
+# make colour for na
+  mutate(fill_color = if_else(is.na(serv_at_desc),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = serv_at_desc, x = n)) +
+  geom_col(aes(fill = fill_color)) +
+  facet_wrap(~year, ncol = 4) +
+  geom_text(aes(label = percent),
+            colour = "black",
+            size = 7,
+            fontface = "bold",
+            x = xpos2
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Health Service") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(
+    axis.text.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20, angle = 90))
+
+```
+
+<br>
+ 
+### Diagnoses codes
+
+The variable *diag_cod* is missing in **`r miss_diag_cod$missing_obs` observations**, so it is `r colorize(miss_diag_cod$print_missing, miss_diag_cod$color_missing)` complete. @fig-ccode shows the most employed diagnoses codes. Finally, @fig-ccodeyear shows the count of the 10 most employed codes per year.
+
+<br>
+
+```{r}
+#| label: fig-ccode
+#| fig-cap: "Diagnosis codes used in primary care visits"
+# plot diag_cod-----------------------------------------------------------
+x_pos <- nrow(pcv)/10
+
+pcv |>
+  mutate(diag_cod = fct_lump_n(fct_infreq(diag_cod), n = 10, 
+                                   other_level = "OTROS") |> fct_rev()) |>
+  count(diag_cod) |> 
+  mutate(n_all = sum(n)) |> 
+  ungroup() |>
+  mutate(percent = glue("{round(100 * n / n_all, 1)}%")) |> 
+# make colour for na
+  mutate(fill_color = if_else(is.na(diag_cod),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = diag_cod, x = n)) +
+  geom_col(aes(fill = fill_color)) +
+  geom_text(aes(label = percent),
+            colour = "black",
+            size = 7,
+            x = x_pos,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Diagnosis Codes") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(axis.text = element_text(size = 20))
+
+```
+
+
+<br>
+
+```{r}
+#| label: fig-ccodeyear
+#| fig-cap: "Diagnosis codes used in primary care visits per year"
+# plot diag_cod per year-----------------------------------------------------
+
+pcv |>
+  mutate(diag_cod = fct_lump_n(fct_infreq(diag_cod), n = 10, 
+                                   other_level = "OTROS") |> fct_rev()) |>
+  mutate(year = year(fecha_consulta)) |>
+  count(year, diag_cod) |>
+  group_by(year) |> 
+  mutate(n_year = sum(n)) |> 
+  ungroup() |>
+  mutate(percent = glue("{round(100 * n / n_year, 1)}%")) |> 
+# make colour for na
+  mutate(fill_color = if_else(is.na(diag_cod),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = diag_cod, x = n)) +
+  geom_col(aes(fill = fill_color)) +
+  facet_wrap(~year, ncol = 4) +
+  geom_text_repel(aes(label = percent),
+            colour = "black",
+            size = 7,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Diagnosis Codes") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(axis.text.x = element_text(size = 20, angle = 90))
+
+```
+
+<br>
+
+### Code vocabulary
+
+The variable *tipo_codigo* is missing in **`r miss_tipo_codigo$missing_obs` observations**, so it is `r colorize(miss_tipo_codigo$print_missing, miss_tipo_codigo$color_missing)` complete. @fig-ctipo shows the count of the utilization of each visit service. Finally, @fig-ctipoyear shows the count of visits for the 10 most used services per year.
+
+<br>
+
+```{r}
+#| label: fig-ctipo
+#| fig-cap: "Code vocabularies used in primary care visits"
+# plot tipo_codigo-----------------------------------------------------------
+pcv |>
+  tabyl(tipo_codigo) |>
+  adorn_pct_formatting() |> 
+  mutate(tipo_codigo = fct_reorder(tipo_codigo, n)) |> 
+  # make colour for na
+  mutate(fill_color = if_else(is.na(tipo_codigo),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = tipo_codigo, x = n)) +
+  geom_col(aes(fill = fill_color)) + 
+  geom_text(aes(label = percent),
+            colour = "black",
+            position = position_nudge(100),
+            size = 7,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Code Vocabulary") +
+  scale_x_continuous(name = "Count", labels = scales::comma) +
+  theme(axis.text.y = element_text(size = 20))
+
+```
+
+
+<br>
+
+```{r}
+#| label: fig-ctipoyear
+#| fig-cap: "Code vocabularies used in primary care visits per year"
+# plot tipo_codigo per year--------------------------------------------------
+
+pcv |>
+  mutate(tipo_codigo = fct_infreq(tipo_codigo) |> fct_rev()) |>
+  mutate(year = year(fecha_consulta)) |>
+  count(year, tipo_codigo) |>
+  group_by(year) |> 
+  mutate(n_year = sum(n)) |> 
+  ungroup() |>
+  mutate(percent = glue("{round(100 * n / n_year, 1)}%")) |> 
+# make colour for na
+  mutate(fill_color = if_else(is.na(tipo_codigo),
+                              "grey38", "#9473d8")) |>
+ggplot(aes(y = tipo_codigo, x = n)) +
+  geom_col(aes(fill = fill_color)) +
+  facet_wrap(~year, ncol = 4) +
+  geom_text_repel(aes(label = percent),
+            colour = "black",
+            size = 7,
+            fontface = "bold"
+            ) +
+  scale_fill_identity() +
+  scale_y_discrete(name = "Code Vocabulary") +
+  scale_x_continuous(name = "Count", labels = scales::label_comma()) +
+  theme(axis.text.x = element_text(size = 20, angle = 90))
+
+```
+
+<br>
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
