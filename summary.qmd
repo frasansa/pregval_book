@@ -1,7 +1,4 @@
 # Summary
 
-In summary, this book has no content whatsoever.
+In summary, this is a live website of the PREGVAL project.
 
-```{r}
-1 + 1
-```
