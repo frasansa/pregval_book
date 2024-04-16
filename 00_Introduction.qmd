@@ -1,0 +1,23 @@
+---
+title: "Introduction"
+---
+
+```{r}
+#| echo: false
+source("_common.R")
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+```{r }
+#| include: false
+# load libraries and functions-----------------------------------------------
+source(file.path("..", "scripts", "Librerias.R"))
+source(file.path("..", "scripts", "Funciones.R"))
+
+```
+
+This website is about the project PREGVAL, a population-based cohort of pregnancies of the Valencia Region.
+
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
