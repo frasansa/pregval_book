@@ -9,6 +9,7 @@ book:
     - index.qmd
     - "01_Introduction.qmd"
     - "02_SIP_QC.qmd"
+    - summary.qmd
 
     
 format:

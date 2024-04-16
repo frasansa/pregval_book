@@ -1,4 +1,4 @@
-# Summary
+# Summary {.unnumbered}
 
 In summary, this is a live website of the PREGVAL project.
 

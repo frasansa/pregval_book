@@ -18,5 +18,25 @@
     "crumbs": [
       "<span class='chapter-number'>2</span>  <span class='chapter-title'>Quality Check: Processing SIP. Empadronados</span>"
     ]
+  },
+  {
+    "objectID": "summary.html",
+    "href": "summary.html",
+    "title": "Summary",
+    "section": "",
+    "text": "In summary, this is a live website of the PREGVAL project.",
+    "crumbs": [
+      "Summary"
+    ]
+  },
+  {
+    "objectID": "01_Introduction.html",
+    "href": "01_Introduction.html",
+    "title": "1  Introduction",
+    "section": "",
+    "text": "PREGVAL is a population-based cohort of pregnancies in the Region of Valencia, a region in south-eastern Spain with a population of 5 million.",
+    "crumbs": [
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Introduction</span>"
+    ]
   }
 ]
