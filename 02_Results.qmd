@@ -17,7 +17,9 @@ source(file.path("..", "scripts", "Funciones.R"))
 
 ```
 
-## Input
+## Metabolic Diseases Registry
+
+In this section is presented the results obtained from **MDR** (Metabolic Diseases Registry).
 
 ```{r}
 # select the input-----------------------------------------------------------
@@ -27,7 +29,5 @@ table_name <- "sip.csv"
 #   filter(sip %in% sips_empadronados)
 
 ```
-
-The table to be analysed is **`r table_name`**.
 
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
