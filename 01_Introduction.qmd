@@ -19,14 +19,16 @@ source(file.path("..", "scripts", "Funciones.R"))
 
 PREGVAL is a population-based cohort of pregnancies in the Region of Valencia, a region in south-eastern Spain with a population of 5 million.
 
-The PREGVAL cohort was constructed using a hierarchical approach that integrated data from different electronic health registries to create a comprehensive dataset on pregnancy outcomes. First, records with available gestational age were prioritised, allowing an accurate assessment of pregnancy duration. Subsequently, for records without this information, gestational age was imputed using the median gestational age derived from the type of end of pregnancy and source of the data.
+The PREGVAL cohort was constructed using a hierarchical approach that integrated data from different electronic health registries to create a comprehensive dataset on pregnancy outcomes. This cohort contains information not only on live births but also on other types of pregnancy termination. Specifically, stillbirths, elective abortions, spontaneous abortions and unknown abortions. In addition, the number of foetuses in the pregnancy is recorded and whether an ectopic or molar pregnancy was detected.
 
-The process started with the Metabolic Disease Registry (MDR), which captured live births. Additional insights were sourced from the Perinatal Mortality Registry (PMR), enriching the dataset with more live births and comprehensive records of stillbirths, essential for a complete picture of perinatal mortality.
+Firstly, records with available gestational age were prioritised, allowing an accurate assessment of the duration of pregnancy. Then, for records without this information, gestational age was imputed using the median gestational age derived from the type of pregnancy termination and the source of the data.
 
-The dataset was further enhanced by the inclusion of data from the Congenital Anomalies Registry (CONG), which provides details of both live births and stillbirths affected by congenital anomalies. The Minimum Basic Data Set (MBDS) contributed significantly by including records of elective, spontaneous and unknown abortions, in addition to regular live births and stillbirths.
+The process started with the Metabolic Disease Registry (MDR), which recorded live births. Additional evidence was obtained from the Perinatal Mortality Registry (PMR), which enriched the dataset with more live births and comprehensive records of stillbirths, essential for a complete picture of perinatal mortality.
 
-The Electronic Obstetric Sheet (EOS) registry provided additional data on live births, stillbirths and spontaneous abortions. In cases where gestational age was not initially recorded, further data were extracted from the MBDS using alternative codes, the Adverse Event Database (AED), and Specialist Care Examinations (CEX). The Primary Care Visits (PCV) registry provided additional insight, particularly valuable for pregnancies without detailed gestational age records.
+The dataset has been further enhanced by the inclusion of data from the Congenital Anomalies Registry (CONG), which provides details of both live births and stillbirths affected by congenital anomalies. The Minimum Basic Data Set (MBDS) contributed significantly by including records of elective, spontaneous and unknown abortions, in addition to regular live births and stillbirths.
 
-For cases without recorded gestational age, the cohort methodology was to impute the median gestational age for each type of outcome across the respective databases. This approach ensured the robustness and comprehensiveness of the dataset, allowing detailed analysis of pregnancy outcomes under different scenarios.
+The Electronic Obstetric Sheet (EOS) registry provided additional data on live births, stillbirths and spontaneous abortions. Finally, other pregnancies, mainly not ended as live birth, are retrieved using ICD-9 and ICD-10 codes using the Accidents and Emergency Department visits (AED), Specialist Care Visits (CEX), and Primary Care Visits (PCV).
+
+Once this hierarchy is applied when the gestational age is available, it is repeated with the remaining observations when the gestational age is missing.
 
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

@@ -2,9 +2,9 @@
   {
     "objectID": "index.html",
     "href": "index.html",
-    "title": "PREGVAL Book",
+    "title": "PREGVAL Project",
     "section": "",
-    "text": "Preface\nThis website is about the PREGVAL project.",
+    "text": "Preface\nThis website is about the PREGVAL project. A project leaded by CR at FISABIO-HSRP unit.",
     "crumbs": [
       "Preface"
     ]
@@ -12,11 +12,11 @@
   {
     "objectID": "02_SIP_QC.html",
     "href": "02_SIP_QC.html",
-    "title": "2  Quality Check: Processing SIP. Empadronados",
+    "title": "2  Quality Check: Processing SIP",
     "section": "",
     "text": "2.1 Input\nThe table to be analysed is sip.csv.",
     "crumbs": [
-      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Quality Check: Processing SIP. Empadronados</span>"
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Quality Check: Processing SIP</span>"
     ]
   },
   {
@@ -34,7 +34,7 @@
     "href": "01_Introduction.html",
     "title": "1  Introduction",
     "section": "",
-    "text": "PREGVAL is a population-based cohort of pregnancies in the Region of Valencia, a region in south-eastern Spain with a population of 5 million.",
+    "text": "PREGVAL is a population-based cohort of pregnancies in the Region of Valencia, a region in south-eastern Spain with a population of 5 million.\nThe PREGVAL cohort was constructed using a hierarchical approach that integrated data from different electronic health registries to create a comprehensive dataset on pregnancy outcomes. This cohort contains information not only on live births but also on other types of pregnancy termination. Specifically, stillbirths, elective abortions, spontaneous abortions and unknown abortions. In addition, the number of foetuses in the pregnancy is recorded and whether an ectopic or molar pregnancy was detected.\nFirstly, records with available gestational age were prioritised, allowing an accurate assessment of the duration of pregnancy. Then, for records without this information, gestational age was imputed using the median gestational age derived from the type of pregnancy termination and the source of the data.\nThe process started with the Metabolic Disease Registry (MDR), which recorded live births. Additional evidence was obtained from the Perinatal Mortality Registry (PMR), which enriched the dataset with more live births and comprehensive records of stillbirths, essential for a complete picture of perinatal mortality.\nThe dataset has been further enhanced by the inclusion of data from the Congenital Anomalies Registry (CONG), which provides details of both live births and stillbirths affected by congenital anomalies. The Minimum Basic Data Set (MBDS) contributed significantly by including records of elective, spontaneous and unknown abortions, in addition to regular live births and stillbirths.\nThe Electronic Obstetric Sheet (EOS) registry provided additional data on live births, stillbirths and spontaneous abortions. Finally, other pregnancies, mainly not ended as live birth, are retrieved using ICD-9 and ICD-10 codes using the Accidents and Emergency Department visits (AED), Specialist Care Visits (CEX), and Primary Care Visits (PCV).\nOnce this hierarchy is applied when the gestational age is available, it is repeated with the remaining observations when the gestational age is missing.",
     "crumbs": [
       "<span class='chapter-number'>1</span>  <span class='chapter-title'>Introduction</span>"
     ]

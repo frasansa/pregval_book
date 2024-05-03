@@ -2,12 +2,12 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.4.550">
+<meta name="generator" content="quarto-1.4.554">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>PREGVAL Book - 1&nbsp; Introduction</title>
+<title>PREGVAL Project - 1&nbsp; Introduction</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -96,7 +96,7 @@ ul.task-list li input[type="checkbox"] {
   <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
     <div class="pt-lg-2 mt-2 text-left sidebar-header">
     <div class="sidebar-title mb-0 py-0">
-      <a href="./">PREGVAL Book</a> 
+      <a href="./">PREGVAL Project</a> 
     </div>
       </div>
         <div class="mt-2 flex-shrink-0 align-items-center">
@@ -121,7 +121,7 @@ ul.task-list li input[type="checkbox"] {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./02_SIP_QC.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quality Check: Processing SIP. Empadronados</span></span></a>
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quality Check: Processing SIP</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -161,6 +161,12 @@ ul.task-list li input[type="checkbox"] {
 
 
 <p>PREGVAL is a population-based cohort of pregnancies in the Region of Valencia, a region in south-eastern Spain with a population of 5 million.</p>
+<p>The PREGVAL cohort was constructed using a hierarchical approach that integrated data from different electronic health registries to create a comprehensive dataset on pregnancy outcomes. This cohort contains information not only on live births but also on other types of pregnancy termination. Specifically, stillbirths, elective abortions, spontaneous abortions and unknown abortions. In addition, the number of foetuses in the pregnancy is recorded and whether an ectopic or molar pregnancy was detected.</p>
+<p>Firstly, records with available gestational age were prioritised, allowing an accurate assessment of the duration of pregnancy. Then, for records without this information, gestational age was imputed using the median gestational age derived from the type of pregnancy termination and the source of the data.</p>
+<p>The process started with the Metabolic Disease Registry (MDR), which recorded live births. Additional evidence was obtained from the Perinatal Mortality Registry (PMR), which enriched the dataset with more live births and comprehensive records of stillbirths, essential for a complete picture of perinatal mortality.</p>
+<p>The dataset has been further enhanced by the inclusion of data from the Congenital Anomalies Registry (CONG), which provides details of both live births and stillbirths affected by congenital anomalies. The Minimum Basic Data Set (MBDS) contributed significantly by including records of elective, spontaneous and unknown abortions, in addition to regular live births and stillbirths.</p>
+<p>The Electronic Obstetric Sheet (EOS) registry provided additional data on live births, stillbirths and spontaneous abortions. Finally, other pregnancies, mainly not ended as live birth, are retrieved using ICD-9 and ICD-10 codes using the Accidents and Emergency Department visits (AED), Specialist Care Visits (CEX), and Primary Care Visits (PCV).</p>
+<p>Once this hierarchy is applied when the gestational age is available, it is repeated with the remaining observations when the gestational age is missing.</p>
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;">
 
 </div>
@@ -247,6 +253,24 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     // clear code selection
     e.clearSelection();
   });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
   function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
     const config = {
       allowHTML: true,
@@ -281,7 +305,11 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       try { href = new URL(href).hash; } catch {}
       const id = href.replace(/^#\/?/, "");
       const note = window.document.getElementById(id);
-      return note.innerHTML;
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
     });
   }
   const xrefs = window.document.querySelectorAll('a.quarto-xref');
@@ -562,8 +590,8 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./02_SIP_QC.html" class="pagination-link" aria-label="Quality Check: Processing SIP. Empadronados">
-        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quality Check: Processing SIP. Empadronados</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="./02_SIP_QC.html" class="pagination-link" aria-label="Quality Check: Processing SIP">
+        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Quality Check: Processing SIP</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
