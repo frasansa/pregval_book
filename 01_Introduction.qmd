@@ -37,20 +37,20 @@ Once this hierarchy is applied when the gestational age is available, it is repe
 mermaid('
     graph TD
     B("Deliveries")
-    C("Spontaneous abortion/termination")
+    C("Stillbirth/Spontaneous abortion/Termination")
     subgraph  VID   
     D["Metabolic Disease Registry <br> (100% total deliveries, <br> with mother-child linkage)"] 
     E["Public MBDS <br> - #8776;70% total deliveries <br> - Abortions/terminations <br> under hospitalization"]
     F["Perinatal <br> Mortality <br> Registry"]
     F2["Emergency <br> Room Visits"]
-    F3["Ambulatory EHR <br> (primary/especialist care)"]
+    F3["Ambulatory EHR <br> (primary/especialist care/electronic obstetric sheet)"]
     end
     G["Metabolic Disease Registry With mother ID <br> 
     (#8776;82% total deliveries)"]
     H{"Provides mother ID <br> on MDR deliveries <br> with missing data"}
     H2{"Diagnosis, procedure <br> or medication related <br> to abortion/termination"}
     I["Total deliveries identified"]
-    J["Spontaneous abortions <br> and terminations identified"]
+    J["Stillbirth, spontaneous abortions <br> and terminations identified"]
     K(Pregnancy-offspring cohort)
     B --> D
     B --> E
