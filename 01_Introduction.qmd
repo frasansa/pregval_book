@@ -31,4 +31,60 @@ The Electronic Obstetric Sheet (EOS) registry provided additional data on live b
 
 Once this hierarchy is applied when the gestational age is available, it is repeated with the remaining observations when the gestational age is missing.
 
+```{r flow2, fig.cap = "PREGVAL Pregnancy-offspring cohort construction flow"}
+# APT tree---------------------------------------------------------------------
+
+mermaid('
+    graph TD
+    B("Deliveries")
+    C("Spontaneous abortion/termination")
+    subgraph  VID   
+    D["Metabolic Disease Registry <br> (100% total deliveries, <br> with mother-child linkage)"] 
+    E["Public MBDS <br> - #8776;70% total deliveries <br> - Abortions/terminations <br> under hospitalization"]
+    F["Perinatal <br> Mortality <br> Registry"]
+    F2["Emergency <br> Room Visits"]
+    F3["Ambulatory EHR <br> (primary/especialist care)"]
+    end
+    G["Metabolic Disease Registry With mother ID <br> 
+    (#8776;82% total deliveries)"]
+    H{"Provides mother ID <br> on MDR deliveries <br> with missing data"}
+    H2{"Diagnosis, procedure <br> or medication related <br> to abortion/termination"}
+    I["Total deliveries identified"]
+    J["Spontaneous abortions <br> and terminations identified"]
+    K(Pregnancy-offspring cohort)
+    B --> D
+    B --> E
+    C --> E
+    C --> F
+    C --> F2
+    C --> F3
+    D --> |"Missing mother ID: #8776;18%"| G
+    E --> H
+    E --> H2
+    F --> H2
+    F2 --> H2
+    F3 --> H2
+    G --> I
+    H --> |"Yes"| I
+    H2 --> |"Yes"| J
+    I --> K
+    J --> K
+        
+ style B fill:#ffc279, stroke:#333, stroke-width:2px;
+ style C fill:#CDA3D5, stroke:#333, stroke-width:2px;
+ style D fill:#8de1b0, stroke:#333, stroke-width:2px;
+ style E fill:#8de1b0, stroke:#333, stroke-width:2px;
+ style F fill:#8de1b0, stroke:#333, stroke-width:2px;
+ style F2 fill:#8de1b0, stroke:#333, stroke-width:2px;
+ style F3 fill:#8de1b0, stroke:#333, stroke-width:2px;
+ style G fill:#c3de89, stroke:#333, stroke-width:2px;
+ style H fill:#bad6e9, stroke:#333, stroke-width:2px;
+ style H2 fill:#bad6e9, stroke:#333, stroke-width:2px;
+ style I fill:#ffc279, stroke:#333, stroke-width:2px;
+ style J fill:#CDA3D5, stroke:#333, stroke-width:2px;
+ style K fill:#e8503f, stroke:#333, stroke-width:2px;
+        ')
+
+```
+
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

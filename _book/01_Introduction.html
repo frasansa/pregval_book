@@ -68,6 +68,22 @@ ul.task-list li input[type="checkbox"] {
     "search-label": "Search"
   }
 }</script>
+<script src="site_libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+
+<script src="site_libs/d3-3.3.8/d3.min.js"></script>
+
+<script src="site_libs/dagre-0.4.0/dagre-d3.min.js"></script>
+
+<link href="site_libs/mermaid-0.3.0/dist/mermaid.css" rel="stylesheet">
+
+<script src="site_libs/mermaid-0.3.0/dist/mermaid.slim.min.js"></script>
+
+<link href="site_libs/DiagrammeR-styles-0.2/styles.css" rel="stylesheet">
+
+<script src="site_libs/chromatography-0.1/chromatography.js"></script>
+
+<script src="site_libs/DiagrammeR-binding-1.0.10/DiagrammeR.js"></script>
+
 
 
 </head>
@@ -167,6 +183,13 @@ ul.task-list li input[type="checkbox"] {
 <p>The dataset has been further enhanced by the inclusion of data from the Congenital Anomalies Registry (CONG), which provides details of both live births and stillbirths affected by congenital anomalies. The Minimum Basic Data Set (MBDS) contributed significantly by including records of elective, spontaneous and unknown abortions, in addition to regular live births and stillbirths.</p>
 <p>The Electronic Obstetric Sheet (EOS) registry provided additional data on live births, stillbirths and spontaneous abortions. Finally, other pregnancies, mainly not ended as live birth, are retrieved using ICD-9 and ICD-10 codes using the Accidents and Emergency Department visits (AED), Specialist Care Visits (CEX), and Primary Care Visits (PCV).</p>
 <p>Once this hierarchy is applied when the gestational age is available, it is repeated with the remaining observations when the gestational age is missing.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="DiagrammeR html-widget html-fill-item" id="htmlwidget-f2a914f45b34c669d32b" style="width:100%;height:454px;"></div>
+<script type="application/json" data-for="htmlwidget-f2a914f45b34c669d32b">{"x":{"diagram":"\n    graph TD\n    B(\"Deliveries\")\n    C(\"Spontaneous abortion/termination\")\n    subgraph  VID   \n    D[\"Metabolic Disease Registry <br> (100% total deliveries, <br> with mother-child linkage)\"] \n    E[\"Public MBDS <br> - #8776;70% total deliveries <br> - Abortions/terminations <br> under hospitalization\"]\n    F[\"Perinatal <br> Mortality <br> Registry\"]\n    F2[\"Emergency <br> Room Visits\"]\n    F3[\"Ambulatory EHR <br> (primary/especialist care)\"]\n    end\n    G[\"Metabolic Disease Registry With mother ID <br> \n    (#8776;82% total deliveries)\"]\n    H{\"Provides mother ID <br> on MDR deliveries <br> with missing data\"}\n    H2{\"Diagnosis, procedure <br> or medication related <br> to abortion/termination\"}\n    I[\"Total deliveries identified\"]\n    J[\"Spontaneous abortions <br> and terminations identified\"]\n    K(Pregnancy-offspring cohort)\n    B --> D\n    B --> E\n    C --> E\n    C --> F\n    C --> F2\n    C --> F3\n    D --> |\"Missing mother ID: #8776;18%\"| G\n    E --> H\n    E --> H2\n    F --> H2\n    F2 --> H2\n    F3 --> H2\n    G --> I\n    H --> |\"Yes\"| I\n    H2 --> |\"Yes\"| J\n    I --> K\n    J --> K\n        \n style B fill:#ffc279, stroke:#333, stroke-width:2px;\n style C fill:#CDA3D5, stroke:#333, stroke-width:2px;\n style D fill:#8de1b0, stroke:#333, stroke-width:2px;\n style E fill:#8de1b0, stroke:#333, stroke-width:2px;\n style F fill:#8de1b0, stroke:#333, stroke-width:2px;\n style F2 fill:#8de1b0, stroke:#333, stroke-width:2px;\n style F3 fill:#8de1b0, stroke:#333, stroke-width:2px;\n style G fill:#c3de89, stroke:#333, stroke-width:2px;\n style H fill:#bad6e9, stroke:#333, stroke-width:2px;\n style H2 fill:#bad6e9, stroke:#333, stroke-width:2px;\n style I fill:#ffc279, stroke:#333, stroke-width:2px;\n style J fill:#CDA3D5, stroke:#333, stroke-width:2px;\n style K fill:#e8503f, stroke:#333, stroke-width:2px;\n        "},"evals":[],"jsHooks":[]}</script>
+<p>PREGVAL Pregnancy-offspring cohort construction flow</p>
+</div>
+</div>
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;">
 
 </div>

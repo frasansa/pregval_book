@@ -17,16 +17,40 @@ source(file.path("..", "scripts", "Funciones.R"))
 
 ```
 
+```{r}
+# Load pathes----------------------------------------------------------------
+brutos      <- file.path( "r:", "PREGVAL", "1-DATOS", 
+                          "1-BRUTOS")
+intermedios <- file.path( "r:", "PREGVAL", "1-DATOS", 
+                          "2-INTERMEDIOS")
+procesados  <- file.path( "r:", "PREGVAL", "1-DATOS", 
+                          "3-PROCESADOS")
+
+```
+
 ## Metabolic Diseases Registry
 
 In this section is presented the results obtained from **MDR** (Metabolic Diseases Registry).
 
 ```{r}
 # select the input-----------------------------------------------------------
-table_name <- "sip.csv"
-# sip <- fread2(file.path("..", "QC_project", "datos", "Pregval", 
-#                         table_name)) |> 
-#   filter(sip %in% sips_empadronados)
+mdr_pregnancies_clean <- readRDS(file = file.path(procesados, 
+                                                  "mdr_pregnancies_clean.RDS"))
+
+```
+
+```{r}
+#| label: fig-visitmonth
+#| fig-cap: "Pregnancies ended in live birth in MDR"
+# plot month of fecha_consulta-----------------------------------------------
+mdr_pregnancies_clean_year <- mdr_pregnancies_clean |> 
+  count(year = year(fecha_fin_emb), name = "n_year")
+
+ggplot(mdr_pregnancies_clean_year) +
+  geom_col(aes(x = year, y = n_year), fill = "#9473d8") +
+  xlab("Year") +
+  scale_y_continuous(name = "Pregnancies", labels = scales::comma) +
+  theme(axis.text = element_text(size = 20))
 
 ```
 
