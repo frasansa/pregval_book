@@ -39,7 +39,7 @@ mermaid('
     B("Deliveries")
     C("Stillbirth/Spontaneous abortion/Termination")
     subgraph  VID   
-    D["Metabolic Disease Registry <br> (100% total deliveries, <br> with mother-child linkage)"] 
+    D["Metabolic Disease Registry <br> (99.98% total deliveries, <br> with mother-child linkage)"] 
     E["Public MBDS <br> - #8776;70% total deliveries <br> - Abortions/terminations <br> under hospitalization"]
     F["Perinatal <br> Mortality <br> Registry"]
     F2["Emergency <br> Room Visits"]
