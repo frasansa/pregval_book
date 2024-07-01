@@ -10,26 +10,6 @@
     ]
   },
   {
-    "objectID": "02_SIP_QC.html",
-    "href": "02_SIP_QC.html",
-    "title": "2  Quality Check: Processing SIP",
-    "section": "",
-    "text": "2.1 Input\nThe table to be analysed is sip.csv.",
-    "crumbs": [
-      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Quality Check: Processing SIP</span>"
-    ]
-  },
-  {
-    "objectID": "summary.html",
-    "href": "summary.html",
-    "title": "Summary",
-    "section": "",
-    "text": "In summary, this is a live website of the PREGVAL project.",
-    "crumbs": [
-      "Summary"
-    ]
-  },
-  {
     "objectID": "01_Introduction.html",
     "href": "01_Introduction.html",
     "title": "1  Introduction",
@@ -47,6 +27,16 @@
     "text": "2.1 Metabolic Diseases Registry\nIn this section is presented the results obtained from MDR (Metabolic Diseases Registry).\nFigure 2.1: Pregnancies ended in live birth in MDR",
     "crumbs": [
       "<span class='chapter-number'>2</span>  <span class='chapter-title'>Results</span>"
+    ]
+  },
+  {
+    "objectID": "summary.html",
+    "href": "summary.html",
+    "title": "Summary",
+    "section": "",
+    "text": "In summary, this is a live website of the PREGVAL project.",
+    "crumbs": [
+      "Summary"
     ]
   }
 ]
